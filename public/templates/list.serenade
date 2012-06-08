@@ -1,0 +1,11 @@
+div
+  div "Here is the list"
+  ul
+    - collection @items
+      li
+        a[href=@dst] @id
+        button[event:click=del! class="delete" data-dbid=@id] "delete"
+        div @string
+
+  - collection @appends
+    button[event:click=create!] "append a new item!"

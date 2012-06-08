@@ -1,0 +1,6 @@
+div
+  div "Start with one of these"
+  ul
+    - collection @roots
+      li
+        a[href=@dst] @name

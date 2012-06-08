@@ -1,0 +1,10 @@
+div
+  div "Here is the item"
+  div @item
+  button[event:click=del!] "delete"
+  div "Should be able to edit the item as well..."
+
+  ul
+    - collection @owned
+      li
+        a[href=@dst] @name
