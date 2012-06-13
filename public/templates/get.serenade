@@ -2,9 +2,20 @@ div
   div "Here is the item"
   div @item
   button[event:click=del!] "delete"
-  div "Should be able to edit the item as well..."
 
   ul
     - collection @owned
       li
         a[href=@dst] @name
+
+  button[event:click=startUpdate! style:display=@updateDisplayInv] "change"
+
+  div[style:display=@updateDisplay]
+    div
+      - collection @pairs
+        div
+          span @key
+          input[type="text" binding:keyup=@value]
+
+    button[event:click=cancelUpdate!] "cancel"
+    button[event:click=submitUpdate!] "submit"

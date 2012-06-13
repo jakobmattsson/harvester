@@ -13,7 +13,6 @@ var port = ports[0];
 var dir = path.resolve(process.cwd(), dirs[0]);
 
 var rome = function(req, res, next) {
-  console.log(req.url, req.headers)
   if (req.headers.accept.indexOf('text/html') != -1) {
     req.url = "/index.html";
   }

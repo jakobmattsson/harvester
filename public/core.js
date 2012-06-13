@@ -6,11 +6,24 @@ var ajax = function(params, callback) {
     url: params.url,
     data: params.data || {},
     dataType: 'json',
+    xhrFields: {
+      withCredentials: true
+    },
+    beforeSend : function(req) {
+      if (params.username || params.password) {
+        var str = (params.username || '') + ':' + (params.password || '');
+        req.setRequestHeader('Authorization', "Basic " + btoa(str));
+      }
+    },
     success: function(data) {
       callback(null, data);
     },
     error: function(xhr) {
-      callback(JSON.parse(xhr.responseText));
+      if (!xhr.responseText) {
+        callback("failed")
+      } else {
+        callback(JSON.parse(xhr.responseText));
+      }
     }
   });
 };
@@ -29,6 +42,42 @@ var attachEvent = function(obj, eventName, callback) {
       callback.apply(this, arguments);
     };
   }
+};
+
+var toKeyValues = function(source) {
+  return Object.keys(source).map(function(key) {
+    return {
+      key: key,
+      value: source[key]
+    };
+  });
+};
+Array.prototype.toMap = function(keySelector, valueSelector) {
+  if (typeof keySelector == 'string') {
+    var keySelectorString = keySelector;
+    keySelector = function(e) {
+      return e[keySelectorString];
+    };
+  }
+
+  if (typeof valueSelector == 'string') {
+    var valueSelectorString = valueSelector;
+    valueSelector = function(e) {
+      return e[valueSelectorString];
+    };
+  }
+
+  if (typeof valueSelector == 'undefined') {
+    valueSelector = function(e) {
+      return e;
+    };
+  }
+
+  var result = {};
+  this.forEach(function(e) {
+    result[keySelector(e)] = valueSelector(e);
+  });
+  return result;
 };
 
 var multiGet = function(paths, callback) {

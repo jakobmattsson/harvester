@@ -7,8 +7,19 @@ render = (view, model, controller) ->
   removeChildren(document.body)
   document.body.appendChild(getSerenadeView(view).render(model, controller || {}))
 
+window.oldAjax = window.ajax
+window.ajax = (params, callback) ->
+  # params.username = 'admin'
+  # params.password = 'admin'
+  oldAjax.call(this, params, callback)
+  
+
+
+
+
 handlers = {}
-baseUrl = 'http://localhost:3000'
+baseUrl = 'http://sally.jdevab.com'
+# baseUrl = 'http://localhost:3000'
 
 safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
@@ -50,7 +61,7 @@ handlers.list = (resource) ->
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        alert("ask for some data to put in to the object here... bla bla bla")
+        # alert("ask for some data to put in to the object here... bla bla bla")
 
         ajax
           url: "#{baseUrl}/#{resource}"
@@ -85,7 +96,7 @@ handlers.sublist = (resource, baseid, subresource) ->
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        alert("ask for some data to put in to the object here... bla bla bla");
+        # alert("ask for some data to put in to the object here... bla bla bla");
 
         ajax
           url: "#{baseUrl}/#{resource}/#{baseid}/#{subresource}"
@@ -105,13 +116,39 @@ handlers.get = (resource, dbid) ->
     data: "#{baseUrl}/#{resource}/#{dbid}"
     meta: "#{baseUrl}/meta/#{resource}"
   , (dd) ->
+
+    metaMap = dd.meta.fields.toMap('name')
+    pairs = toKeyValues(dd.data).filter (x) -> !metaMap[x.key].readonly
+
     model = serenata.createModel
       item: JSON.stringify(dd.data)
+      pairs: pairs
+      updateDisplay: 'none'
+      updateDisplayInv: 'block'
       owned: dd.meta.owns.map (x) ->
         name: x
         dst: "/#{resource}/#{dbid}/#{x}"
 
     controller =
+      startUpdate: serenata.evented (ev, target) ->
+        model.set 'updateDisplay', 'block'
+        model.set 'updateDisplayInv', 'none'
+
+      cancelUpdate: serenata.evented (ev, target) ->
+        model.set 'updateDisplay', 'none'
+        model.set 'updateDisplayInv', 'block'
+
+      submitUpdate: serenata.evented (ev, target) ->
+        ajax
+          url: "#{baseUrl}/#{resource}/#{dbid}"
+          type: 'PUT'
+          data: pairs.toMap('key', 'value')
+        , (err, data) ->
+          if (err)
+            alert(err.err)
+          else
+            model.set('item', JSON.stringify(data))
+
       del: serenata.evented (ev, target) ->
         if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
           ajax
@@ -126,22 +163,34 @@ handlers.get = (resource, dbid) ->
     render('get', model, controller)
 
 
-historyReplace = (method, args) ->
-  history.replaceState(null, "Harvester", '/' + args.join('/'))
+goto = (method, args) ->
   handlers[method].apply(null, args)
 
+historyReplace = (method, args) ->
+  history.replaceState(null, "Harvester", '/' + args.join('/'))
+  goto(method, args)
 
+
+
+
+# opraTags = argsToArray(document.getElementsByTagName('script')).filter (x) ->
+#   x.type == 'text/x-opra'
+# 
+# opraTags.forEach (x) ->
+#   path = x.dataset.path
+#   name = path.replace('/templates/', '').replace('.serenade', '')
+#   Serenade.view(name, x.innerHTML)
 
 
 parts = window.location.pathname.split('/').filter (x) -> x
 
 if parts.length == 0
-  historyReplace 'start', []
+  goto 'start', []
 else if parts.length == 1
-  historyReplace 'list', parts
+  goto 'list', parts
 else if parts.length == 2
-  historyReplace 'get', parts
+  goto 'get', parts
 else if parts.length == 3
-  historyReplace 'sublist', parts
+  goto 'sublist', parts
 else
   alert("Invalid case")

@@ -1,0 +1,22 @@
+{
+  "name": "harvester",
+  "description": "API Explorer",
+  "main": "app.js",
+  "version": "0.0.1",
+  "author": "Jakob Mattsson <jakob.mattsson@gmail.com> (jakobmattsson.se)",
+  "engines": {
+    "node": ">=0.6.0"
+  },
+  "devDependencies": {
+    "powerfs": "0.0.x",
+    "connect": "2.3.x",
+    "knox": "0.0.x",
+    "opra": "0.9.x",
+    "express-jit-coffee": "0.1.x",
+    "should": "0.6.x"
+  },
+  "scripts": {
+    "start": "node app.js public",
+    "deploy": "node deploy.js"
+  }
+}
