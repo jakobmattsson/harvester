@@ -1041,12 +1041,12 @@
     };
 
     DynamicNode.prototype.insertNodeSet = function(index, nodes) {
-      var last, node, _i, _len;
-      last = this.nodeSets[index - 1].last();
+      var last, node, _i, _len, _ref, _ref1;
+      last = ((_ref = this.nodeSets[index - 1]) != null ? (_ref1 = _ref.last()) != null ? _ref1.lastElement() : void 0 : void 0) || this.anchor;
       for (_i = 0, _len = nodes.length; _i < _len; _i++) {
         node = nodes[_i];
-        node.insertAfter(last.lastElement());
-        last = node;
+        node.insertAfter(last);
+        last = node.lastElement();
       }
       return this.nodeSets.insertAt(index, new Collection(nodes));
     };
