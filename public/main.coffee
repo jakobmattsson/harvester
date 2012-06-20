@@ -29,6 +29,9 @@ safeMultiGet = (paths, callback) ->
     else
       callback(data)
 
+handlers.start = () ->
+  render('start', {})
+
 handlers.root = () ->
   safeMultiGet
     url: '/'
@@ -192,12 +195,12 @@ historyReplace = (method, args) ->
 
 
 
-underline.block () ->
+jQuery () ->
 
   all = window.location.pathname.split('/').filter (x) -> x
 
   if all.length == 0
-    alert("nothing here")
+    goto 'start', []
     return
 
   domain = all[0]
