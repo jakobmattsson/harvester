@@ -33,58 +33,6 @@ var ajax = function(params, callback) {
     }
   });
 };
-var attachEvent = function(obj, eventName, callback) {
-  var onEventName = "on" + eventName;
-  if (obj.addEventListener) {
-    obj.addEventListener(eventName, callback, false);
-  } else if (obj.attachEvent) {
-    obj.attachEvent(onEventName, callback);
-  } else {
-    var currentEventHandler = obj[onEventName];
-    obj[onEventName] = function() {
-      if (typeof currentEventHandler == 'function') {
-        currentEventHandler.apply(this, arguments);
-      }
-      callback.apply(this, arguments);
-    };
-  }
-};
-
-var toKeyValues = function(source) {
-  return Object.keys(source).map(function(key) {
-    return {
-      key: key,
-      value: source[key]
-    };
-  });
-};
-Array.prototype.toMap = function(keySelector, valueSelector) {
-  if (typeof keySelector == 'string') {
-    var keySelectorString = keySelector;
-    keySelector = function(e) {
-      return e[keySelectorString];
-    };
-  }
-
-  if (typeof valueSelector == 'string') {
-    var valueSelectorString = valueSelector;
-    valueSelector = function(e) {
-      return e[valueSelectorString];
-    };
-  }
-
-  if (typeof valueSelector == 'undefined') {
-    valueSelector = function(e) {
-      return e;
-    };
-  }
-
-  var result = {};
-  this.forEach(function(e) {
-    result[keySelector(e)] = valueSelector(e);
-  });
-  return result;
-};
 
 var multiGet = function(paths, callback) {
   var keyValuePairs = Object.keys(paths).map(function(key) {
@@ -115,11 +63,7 @@ var getSerenadeView = function(name) {
   }
   throw "fail";
 };
-var removeChildren = function(element) {
-  argsToArray(element.children).forEach(function(x) {
-    element.removeChild(x);
-  });
-};
+
 var serenata = {
   createModel: function(data) {
     var model = {};
@@ -139,7 +83,4 @@ var serenata = {
       callback.call(this, null, e);
     };
   }
-};
-var block = function(f) {
-  return f();
 };

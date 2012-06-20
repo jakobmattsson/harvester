@@ -1,4 +1,6 @@
 window.facebox = require 'modules/facebox'
+underline = require 'modules/local_underline'
+require 'modules/local_protoplast'
 
 resourceToItem = (resourceItem, res) ->
   id: resourceItem.id
@@ -7,7 +9,7 @@ resourceToItem = (resourceItem, res) ->
 
 render = (view, model, controller) ->
   dataview = document.getElementById 'dataview'
-  removeChildren(dataview)
+  underline.removeChildren(dataview)
   dataview.appendChild(getSerenadeView(view).render(model, controller || {}))
 
 renderModal = (view, model, controller) ->
@@ -136,7 +138,7 @@ handlers.get = (resource, dbid) ->
   , (dd) ->
 
     metaMap = dd.meta.fields.toMap('name')
-    pairs = toKeyValues(dd.data).filter (x) -> !metaMap[x.key].readonly
+    pairs = underline.toKeyValues(dd.data).filter (x) -> !metaMap[x.key].readonly
 
     model = serenata.createModel
       item: JSON.stringify(dd.data)
@@ -190,7 +192,7 @@ historyReplace = (method, args) ->
 
 
 
-block () ->
+underline.block () ->
 
   all = window.location.pathname.split('/').filter (x) -> x
 
