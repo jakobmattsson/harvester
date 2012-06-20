@@ -219,4 +219,4 @@ jQuery () ->
   else if parts.length == 3
     goto 'sublist', parts
   else
-    alert("Invalid case")
+    render('error', { message: 'No such page' })
