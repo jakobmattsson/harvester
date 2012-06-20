@@ -6,8 +6,9 @@ resourceToItem = (resourceItem, res) ->
   dst: "/#{res}/#{resourceItem.id}"
 
 render = (view, model, controller) ->
-  removeChildren(document.body)
-  document.body.appendChild(getSerenadeView(view).render(model, controller || {}))
+  dataview = document.getElementById 'dataview'
+  removeChildren(dataview)
+  dataview.appendChild(getSerenadeView(view).render(model, controller || {}))
 
 renderModal = (view, model, controller) ->
   markup = getSerenadeView(view).render(model, controller || {})
