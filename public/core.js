@@ -1,9 +1,15 @@
 var ajax = function(params, callback) {
   var $ = require('commonjs-jquery');
+  var url = params.url;
+
+  if (ajax.baseUrl) {
+    url = ajax.baseUrl + params.url;
+  }
+
   $.ajax({
     type: params.type || 'GET',
     cache: false,
-    url: params.url,
+    url: url,
     data: params.data || {},
     dataType: 'json',
     xhrFields: {
@@ -133,4 +139,7 @@ var serenata = {
       callback.call(this, null, e);
     };
   }
+};
+var block = function(f) {
+  return f();
 };

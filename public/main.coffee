@@ -3,7 +3,7 @@ window.facebox = require 'modules/facebox'
 resourceToItem = (resourceItem, res) ->
   id: resourceItem.id
   string: JSON.stringify(resourceItem)
-  dst: "/#{res}/#{resourceItem.id}"
+  dst: localUrl "/#{res}/#{resourceItem.id}"
 
 render = (view, model, controller) ->
   dataview = document.getElementById 'dataview'
@@ -14,19 +14,11 @@ renderModal = (view, model, controller) ->
   markup = getSerenadeView(view).render(model, controller || {})
   facebox.show(markup, { closeButton: false })
 
-window.oldAjax = window.ajax
-window.ajax = (params, callback) ->
-  # params.username = 'admin'
-  # params.password = 'admin'
-  oldAjax.call(this, params, callback)
-  
-
-
+localUrl = (url) ->
+  url
 
 
 handlers = {}
-baseUrl = 'http://sally.jdevab.com'
-# baseUrl = 'http://localhost:3000'
 
 safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
@@ -37,12 +29,12 @@ safeMultiGet = (paths, callback) ->
 
 handlers.start = () ->
   safeMultiGet
-    url: baseUrl
+    url: '/'
   , (data) ->
     model = serenata.createModel
       roots: data.url.roots.map (x) ->
         name: x
-        dst: "/#{x}"
+        dst: localUrl "/#{x}"
 
     render('start', model)
 
@@ -83,9 +75,9 @@ creationDialog = (postUrl, metaFields, callback) ->
 
 handlers.list = (resource) ->
   safeMultiGet
-    sub: "#{baseUrl}/#{resource}"
-    meta: "#{baseUrl}/meta/#{resource}"
-    base: "#{baseUrl}"
+    sub: "/#{resource}"
+    meta: "/meta/#{resource}"
+    base: "/"
   , (data) ->
     model = serenata.createModel
       appends: if data.base.roots.contains(resource) then [1] else []
@@ -96,14 +88,14 @@ handlers.list = (resource) ->
         dbid = target.dataset.dbid
         if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
           ajax
-            url: "#{baseUrl}/#{resource}/#{dbid}"
+            url: "/#{resource}/#{dbid}"
             type: 'DELETE'
           , (err, data) ->
             alert(err.err) if err
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        creationDialog "#{baseUrl}/#{resource}", data.meta, (err, newObj) ->
+        creationDialog "/#{resource}", data.meta, (err, newObj) ->
           model.get('items').push(resourceToItem(newObj, resource))
 
     render('list', model, controller)
@@ -112,8 +104,8 @@ handlers.list = (resource) ->
 
 handlers.sublist = (resource, baseid, subresource) ->
   safeMultiGet
-    sub: "#{baseUrl}/#{resource}/#{baseid}/#{subresource}"
-    meta: "#{baseUrl}/meta/#{subresource}"
+    sub: "/#{resource}/#{baseid}/#{subresource}"
+    meta: "/meta/#{subresource}"
   , (data) ->
     model = serenata.createModel
       appends: [1]
@@ -124,14 +116,14 @@ handlers.sublist = (resource, baseid, subresource) ->
         dbid = target.dataset.dbid
         if (confirm("Are you sure you want to delete #{subresource}/#{dbid}"))
           ajax
-            url: "#{baseUrl}/#{subresource}/#{dbid}"
+            url: "/#{subresource}/#{dbid}"
             type: 'DELETE'
           , (err, data) ->
             alert(err.err) if err
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        creationDialog "#{baseUrl}/#{resource}/#{baseid}/#{subresource}", data.meta, (err, result) ->
+        creationDialog "/#{resource}/#{baseid}/#{subresource}", data.meta, (err, result) ->
           model.get('items').push(resourceToItem(result, subresource))
 
     render('list', model, controller)
@@ -139,8 +131,8 @@ handlers.sublist = (resource, baseid, subresource) ->
 
 handlers.get = (resource, dbid) ->
   safeMultiGet
-    data: "#{baseUrl}/#{resource}/#{dbid}"
-    meta: "#{baseUrl}/meta/#{resource}"
+    data: "/#{resource}/#{dbid}"
+    meta: "/meta/#{resource}"
   , (dd) ->
 
     metaMap = dd.meta.fields.toMap('name')
@@ -153,7 +145,7 @@ handlers.get = (resource, dbid) ->
       updateDisplayInv: 'block'
       owned: dd.meta.owns.map (x) ->
         name: x
-        dst: "/#{resource}/#{dbid}/#{x}"
+        dst: localUrl "/#{resource}/#{dbid}/#{x}"
 
     controller =
       startUpdate: serenata.evented (ev, target) ->
@@ -166,7 +158,7 @@ handlers.get = (resource, dbid) ->
 
       submitUpdate: serenata.evented (ev, target) ->
         ajax
-          url: "#{baseUrl}/#{resource}/#{dbid}"
+          url: "/#{resource}/#{dbid}"
           type: 'PUT'
           data: pairs.toMap('key', 'value')
         , (err, data) ->
@@ -178,7 +170,7 @@ handlers.get = (resource, dbid) ->
       del: serenata.evented (ev, target) ->
         if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
           ajax
-            url: "#{baseUrl}/#{resource}/#{dbid}"
+            url: "/#{resource}/#{dbid}"
             type: 'DELETE'
           , (err, data) ->
             if err
@@ -193,30 +185,33 @@ goto = (method, args) ->
   handlers[method].apply(null, args)
 
 historyReplace = (method, args) ->
-  history.replaceState(null, "Harvester", '/' + args.join('/'))
   goto(method, args)
 
 
 
 
-# opraTags = argsToArray(document.getElementsByTagName('script')).filter (x) ->
-#   x.type == 'text/x-opra'
-# 
-# opraTags.forEach (x) ->
-#   path = x.dataset.path
-#   name = path.replace('/templates/', '').replace('.serenade', '')
-#   Serenade.view(name, x.innerHTML)
+block () ->
 
+  all = window.location.pathname.split('/').filter (x) -> x
 
-parts = window.location.pathname.split('/').filter (x) -> x
+  if all.length == 0
+    alert("nothing here")
+    return
 
-if parts.length == 0
-  goto 'start', []
-else if parts.length == 1
-  goto 'list', parts
-else if parts.length == 2
-  goto 'get', parts
-else if parts.length == 3
-  goto 'sublist', parts
-else
-  alert("Invalid case")
+  domain = all[0]
+  ajax.baseUrl = 'http://' + domain
+  localUrl = (url) ->
+    '/' + domain + url
+
+  parts = all.slice(1)
+
+  if parts.length == 0
+    goto 'start', []
+  else if parts.length == 1
+    goto 'list', parts
+  else if parts.length == 2
+    goto 'get', parts
+  else if parts.length == 3
+    goto 'sublist', parts
+  else
+    alert("Invalid case")
