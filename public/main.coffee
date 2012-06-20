@@ -29,7 +29,7 @@ safeMultiGet = (paths, callback) ->
     else
       callback(data)
 
-handlers.start = () ->
+handlers.root = () ->
   safeMultiGet
     url: '/'
   , (data) ->
@@ -38,7 +38,7 @@ handlers.start = () ->
         name: x
         dst: localUrl "/#{x}"
 
-    render('start', model)
+    render('root', model)
 
 
 creationDialog = (postUrl, metaFields, callback) ->
@@ -208,7 +208,7 @@ underline.block () ->
   parts = all.slice(1)
 
   if parts.length == 0
-    goto 'start', []
+    goto 'root', []
   else if parts.length == 1
     goto 'list', parts
   else if parts.length == 2
