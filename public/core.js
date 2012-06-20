@@ -128,8 +128,9 @@ var serenata = {
     return model;
   },
   evented: function(callback) {
-    return function(e) {
-      callback.call(this, e, e.target || e.srcElement);
+    return function(data, e) {
+      target = e.target || e.srcElement
+      callback.call(this, null, e);
     };
   }
 };
