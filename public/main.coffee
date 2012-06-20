@@ -1,3 +1,5 @@
+window.facebox = require 'modules/facebox'
+
 resourceToItem = (resourceItem, res) ->
   id: resourceItem.id
   string: JSON.stringify(resourceItem)
