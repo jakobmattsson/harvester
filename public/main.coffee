@@ -9,6 +9,10 @@ render = (view, model, controller) ->
   removeChildren(document.body)
   document.body.appendChild(getSerenadeView(view).render(model, controller || {}))
 
+renderModal = (view, model, controller) ->
+  markup = getSerenadeView(view).render(model, controller || {})
+  facebox.show(markup, { closeButton: false })
+
 window.oldAjax = window.ajax
 window.ajax = (params, callback) ->
   # params.username = 'admin'
@@ -42,9 +46,44 @@ handlers.start = () ->
     render('start', model)
 
 
+creationDialog = (postUrl, metaFields, callback) ->
+  fields = metaFields.fields.filter (field) -> !field.readonly
+
+  new_model = serenata.createModel
+    required: fields.filter((field) -> field.required).map (field) ->
+      title: field.name
+      value: field.default
+    optional: fields.filter((field) -> !field.required).map (field) ->
+      title: field.name
+      value: field.default
+
+  new_controller =
+    send: serenata.evented (ev, target) ->
+
+      reqArray = argsToArray(new_model.get('required'))
+      optArray = argsToArray(new_model.get('optional'))
+
+      all = reqArray.concat(optArray)
+      submitData = all.toMap('title', 'value')
+
+      ajax
+        url: postUrl
+        type: 'POST'
+        data: submitData
+      , (err, data) ->
+        if err
+          alert(if err.err? then err.err else "Could not create the item")
+        else
+          facebox.close()
+          callback(null, data)
+
+  renderModal('new', new_model, new_controller)
+
+
 handlers.list = (resource) ->
   safeMultiGet
     sub: "#{baseUrl}/#{resource}"
+    meta: "#{baseUrl}/meta/#{resource}"
     base: "#{baseUrl}"
   , (data) ->
     model = serenata.createModel
@@ -63,16 +102,8 @@ handlers.list = (resource) ->
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        # alert("ask for some data to put in to the object here... bla bla bla")
-
-        ajax
-          url: "#{baseUrl}/#{resource}"
-          type: 'POST'
-        , (err, data) ->
-          if (err)
-            alert("could not create the item")
-          else
-            model.get('items').push(resourceToItem(data, resource))
+        creationDialog "#{baseUrl}/#{resource}", data.meta, (err, newObj) ->
+          model.get('items').push(resourceToItem(newObj, resource))
 
     render('list', model, controller)
 
@@ -81,6 +112,7 @@ handlers.list = (resource) ->
 handlers.sublist = (resource, baseid, subresource) ->
   safeMultiGet
     sub: "#{baseUrl}/#{resource}/#{baseid}/#{subresource}"
+    meta: "#{baseUrl}/meta/#{subresource}"
   , (data) ->
     model = serenata.createModel
       appends: [1]
@@ -98,17 +130,8 @@ handlers.sublist = (resource, baseid, subresource) ->
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        # alert("ask for some data to put in to the object here... bla bla bla");
-
-        ajax
-          url: "#{baseUrl}/#{resource}/#{baseid}/#{subresource}"
-          type: 'POST'
-          data: { }
-        , (err, data) ->
-          if (err)
-            alert("could not create the item")
-          else
-            model.get('items').push(resourceToItem(data, subresource))
+        creationDialog "#{baseUrl}/#{resource}/#{baseid}/#{subresource}", data.meta, (err, result) ->
+          model.get('items').push(resourceToItem(result, subresource))
 
     render('list', model, controller)
 
