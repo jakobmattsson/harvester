@@ -2,6 +2,12 @@ var ajax = function(params, callback) {
   var $ = require('commonjs-jquery');
   var url = params.url;
 
+  var h = window.location.hash
+  if (h) {
+    params.username = h.slice(1).split('#')[0];
+    params.password = h.slice(1).split('#')[1];
+  }
+
   if (ajax.baseUrl) {
     url = ajax.baseUrl + params.url;
   }
@@ -12,6 +18,7 @@ var ajax = function(params, callback) {
     url: url,
     data: params.data || {},
     dataType: 'json',
+    crossDomain: true,
     xhrFields: {
       withCredentials: true
     },
