@@ -1,0 +1,2 @@
+router.register '/', () ->
+  render('start', {})

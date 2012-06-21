@@ -1,23 +1,23 @@
 window.facebox = require 'modules/facebox'
-underline = require 'modules/local_underline'
+window.underline = require 'modules/local_underline'
 require 'modules/local_protoplast'
-router = require('path-router').create()
+window.router = require('path-router').create()
 
-resourceToItem = (domain, resourceItem, res) ->
+window.resourceToItem = (domain, resourceItem, res) ->
   id: resourceItem.id
   string: JSON.stringify(resourceItem)
   dst: "/#{domain}/#{res}/#{resourceItem.id}"
 
-render = (view, model, controller) ->
+window.render = (view, model, controller) ->
   dataview = document.getElementById 'dataview'
   underline.removeChildren(dataview)
   dataview.appendChild(getSerenadeView(view).render(model, controller || {}))
 
-renderModal = (view, model, controller) ->
+window.renderModal = (view, model, controller) ->
   markup = getSerenadeView(view).render(model, controller || {})
   facebox.show(markup, { closeButton: false })
 
-safeMultiGet = (paths, callback) ->
+window.safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
     if (error)
       render('error', { message: error.err })
@@ -26,22 +26,10 @@ safeMultiGet = (paths, callback) ->
 
 
 
-router.register '/', () ->
-  render('start', {})
-
-router.register '/:domain', (args) ->
-  safeMultiGet
-    url: '/'
-  , (data) ->
-    model = serenata.createModel
-      roots: data.url.roots.map (x) ->
-        name: x
-        dst: "/#{args.domain}/#{x}"
-
-    render('root', model)
 
 
-creationDialog = (postUrl, metaFields, callback) ->
+
+window.creationDialog = (postUrl, metaFields, callback) ->
   fields = metaFields.fields.filter (field) -> !field.readonly
 
   new_model = serenata.createModel
@@ -75,124 +63,13 @@ creationDialog = (postUrl, metaFields, callback) ->
   renderModal('new', new_model, new_controller)
 
 
-router.register '/:domain/:resource', (args) ->
-  resource = args.resource
-  safeMultiGet
-    sub: "/#{resource}"
-    meta: "/meta/#{resource}"
-    base: "/"
-  , (data) ->
-    model = serenata.createModel
-      appends: if data.base.roots.contains(resource) then [1] else []
-      items: data.sub.map (x) -> resourceToItem(args.domain, x, resource)
-
-    controller =
-      del: serenata.evented (ev, target) ->
-        dbid = target.dataset.dbid
-        if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
-          ajax
-            url: "/#{resource}/#{dbid}"
-            type: 'DELETE'
-          , (err, data) ->
-            alert(err.err) if err
-            model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
-
-      create: serenata.evented (ev, target) ->
-        creationDialog "/#{resource}", data.meta, (err, newObj) ->
-          model.get('items').push(resourceToItem(args.domain, newObj, resource))
-
-    render('list', model, controller)
-
-
-
-router.register '/:domain/:resource/:baseid/:subresource', (args) ->
-  resource = args.resource
-  baseid = args.baseid
-  subresource = args.subresource
-  safeMultiGet
-    sub: "/#{resource}/#{baseid}/#{subresource}"
-    meta: "/meta/#{subresource}"
-  , (data) ->
-    model = serenata.createModel
-      appends: [1]
-      items: data.sub.map (x) -> resourceToItem(args.domain, x, subresource)
-
-    controller =
-      del: serenata.evented (ev, target) ->
-        dbid = target.dataset.dbid
-        if (confirm("Are you sure you want to delete #{subresource}/#{dbid}"))
-          ajax
-            url: "/#{subresource}/#{dbid}"
-            type: 'DELETE'
-          , (err, data) ->
-            alert(err.err) if err
-            model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
-
-      create: serenata.evented (ev, target) ->
-        creationDialog "/#{resource}/#{baseid}/#{subresource}", data.meta, (err, result) ->
-          model.get('items').push(resourceToItem(args.domain, result, subresource))
-
-    render('list', model, controller)
-
-
-router.register '/:domain/:resource/:baseid', (args) ->
-  domain = args.domain
-  resource = args.resource
-  dbid = args.baseid
-  safeMultiGet
-    data: "/#{resource}/#{dbid}"
-    meta: "/meta/#{resource}"
-  , (dd) ->
-
-    metaMap = dd.meta.fields.toMap('name')
-    pairs = underline.toKeyValues(dd.data).filter (x) -> !metaMap[x.key].readonly
-
-    model = serenata.createModel
-      item: JSON.stringify(dd.data)
-      pairs: pairs
-      updateDisplay: 'none'
-      updateDisplayInv: 'block'
-      owned: dd.meta.owns.map (x) ->
-        name: x
-        dst: "/#{domain}/#{resource}/#{dbid}/#{x}"
-
-    controller =
-      startUpdate: serenata.evented (ev, target) ->
-        model.set 'updateDisplay', 'block'
-        model.set 'updateDisplayInv', 'none'
-
-      cancelUpdate: serenata.evented (ev, target) ->
-        model.set 'updateDisplay', 'none'
-        model.set 'updateDisplayInv', 'block'
-
-      submitUpdate: serenata.evented (ev, target) ->
-        ajax
-          url: "/#{resource}/#{dbid}"
-          type: 'PUT'
-          data: pairs.toMap('key', 'value')
-        , (err, data) ->
-          if (err)
-            alert(err.err)
-          else
-            model.set('item', JSON.stringify(data))
-
-      del: serenata.evented (ev, target) ->
-        if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
-          ajax
-            url: "/#{resource}/#{dbid}"
-            type: 'DELETE'
-          , (err, data) ->
-            if err
-              alert(err.err)
-            else
-              router.trigger("/#{domain}/#{resource}")
-
-    render('get', model, controller)
 
 
 
 
 
-domain = window.location.pathname.split('/').compact(true).first()
-ajax.baseUrl = 'http://' + domain if domain?
-router.trigger(window.location.pathname)
+setTimeout ->
+  domain = window.location.pathname.split('/').compact(true).first()
+  ajax.baseUrl = 'http://' + domain if domain?
+  router.trigger(window.location.pathname)
+, 1
