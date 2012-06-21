@@ -20,7 +20,7 @@ window.renderModal = (view, model, controller) ->
 window.safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
     if (error)
-      render('error', { message: error.err })
+      render('error', { message: error.err || 'multiGet failed' })
     else
       callback(data)
 
