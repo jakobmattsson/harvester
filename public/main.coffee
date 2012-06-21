@@ -1,11 +1,12 @@
 window.facebox = require 'modules/facebox'
 underline = require 'modules/local_underline'
 require 'modules/local_protoplast'
+router = require('path-router').create()
 
-resourceToItem = (resourceItem, res) ->
+resourceToItem = (domain, resourceItem, res) ->
   id: resourceItem.id
   string: JSON.stringify(resourceItem)
-  dst: localUrl "/#{res}/#{resourceItem.id}"
+  dst: "/#{domain}/#{res}/#{resourceItem.id}"
 
 render = (view, model, controller) ->
   dataview = document.getElementById 'dataview'
@@ -16,12 +17,6 @@ renderModal = (view, model, controller) ->
   markup = getSerenadeView(view).render(model, controller || {})
   facebox.show(markup, { closeButton: false })
 
-localUrl = (url) ->
-  url
-
-
-handlers = {}
-
 safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
     if (error)
@@ -29,17 +24,19 @@ safeMultiGet = (paths, callback) ->
     else
       callback(data)
 
-handlers.start = () ->
+
+
+router.register '/', () ->
   render('start', {})
 
-handlers.root = () ->
+router.register '/:domain', (args) ->
   safeMultiGet
     url: '/'
   , (data) ->
     model = serenata.createModel
       roots: data.url.roots.map (x) ->
         name: x
-        dst: localUrl "/#{x}"
+        dst: "/#{args.domain}/#{x}"
 
     render('root', model)
 
@@ -78,7 +75,8 @@ creationDialog = (postUrl, metaFields, callback) ->
   renderModal('new', new_model, new_controller)
 
 
-handlers.list = (resource) ->
+router.register '/:domain/:resource', (args) ->
+  resource = args.resource
   safeMultiGet
     sub: "/#{resource}"
     meta: "/meta/#{resource}"
@@ -86,7 +84,7 @@ handlers.list = (resource) ->
   , (data) ->
     model = serenata.createModel
       appends: if data.base.roots.contains(resource) then [1] else []
-      items: data.sub.map (x) -> resourceToItem(x, resource)
+      items: data.sub.map (x) -> resourceToItem(args.domain, x, resource)
 
     controller =
       del: serenata.evented (ev, target) ->
@@ -101,20 +99,23 @@ handlers.list = (resource) ->
 
       create: serenata.evented (ev, target) ->
         creationDialog "/#{resource}", data.meta, (err, newObj) ->
-          model.get('items').push(resourceToItem(newObj, resource))
+          model.get('items').push(resourceToItem(args.domain, newObj, resource))
 
     render('list', model, controller)
 
 
 
-handlers.sublist = (resource, baseid, subresource) ->
+router.register '/:domain/:resource/:baseid/:subresource', (args) ->
+  resource = args.resource
+  baseid = args.baseid
+  subresource = args.subresource
   safeMultiGet
     sub: "/#{resource}/#{baseid}/#{subresource}"
     meta: "/meta/#{subresource}"
   , (data) ->
     model = serenata.createModel
       appends: [1]
-      items: data.sub.map (x) -> resourceToItem(x, subresource)
+      items: data.sub.map (x) -> resourceToItem(args.domain, x, subresource)
 
     controller =
       del: serenata.evented (ev, target) ->
@@ -129,12 +130,15 @@ handlers.sublist = (resource, baseid, subresource) ->
 
       create: serenata.evented (ev, target) ->
         creationDialog "/#{resource}/#{baseid}/#{subresource}", data.meta, (err, result) ->
-          model.get('items').push(resourceToItem(result, subresource))
+          model.get('items').push(resourceToItem(args.domain, result, subresource))
 
     render('list', model, controller)
 
 
-handlers.get = (resource, dbid) ->
+router.register '/:domain/:resource/:baseid', (args) ->
+  domain = args.domain
+  resource = args.resource
+  dbid = args.baseid
   safeMultiGet
     data: "/#{resource}/#{dbid}"
     meta: "/meta/#{resource}"
@@ -150,7 +154,7 @@ handlers.get = (resource, dbid) ->
       updateDisplayInv: 'block'
       owned: dd.meta.owns.map (x) ->
         name: x
-        dst: localUrl "/#{resource}/#{dbid}/#{x}"
+        dst: "/#{domain}/#{resource}/#{dbid}/#{x}"
 
     controller =
       startUpdate: serenata.evented (ev, target) ->
@@ -181,42 +185,14 @@ handlers.get = (resource, dbid) ->
             if err
               alert(err.err)
             else
-              historyReplace('list', [resource])
+              router.trigger("/#{domain}/#{resource}")
 
     render('get', model, controller)
 
 
-goto = (method, args) ->
-  handlers[method].apply(null, args)
-
-historyReplace = (method, args) ->
-  goto(method, args)
 
 
 
-
-jQuery () ->
-
-  all = window.location.pathname.split('/').filter (x) -> x
-
-  if all.length == 0
-    goto 'start', []
-    return
-
-  domain = all[0]
-  ajax.baseUrl = 'http://' + domain
-  localUrl = (url) ->
-    '/' + domain + url
-
-  parts = all.slice(1)
-
-  if parts.length == 0
-    goto 'root', []
-  else if parts.length == 1
-    goto 'list', parts
-  else if parts.length == 2
-    goto 'get', parts
-  else if parts.length == 3
-    goto 'sublist', parts
-  else
-    render('error', { message: 'No such page' })
+domain = window.location.pathname.split('/').compact(true).first()
+ajax.baseUrl = 'http://' + domain if domain?
+router.trigger(window.location.pathname)
