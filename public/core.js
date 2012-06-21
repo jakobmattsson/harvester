@@ -62,7 +62,7 @@ var multiGet = function(paths, callback) {
 
 var getSerenadeView = function(name) {
   var x = argsToArray(document.getElementsByTagName('script')).filter(function(x) {
-    return x.dataset.path == '/templates/' + name + '.serenade';
+    return x.getAttribute("data-path") == '/templates/' + name + '.serenade';
   }).first();
 
   if (x) {

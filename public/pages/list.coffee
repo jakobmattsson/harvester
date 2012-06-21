@@ -11,7 +11,7 @@ router.register '/:domain/:resource', (args) ->
 
     controller =
       del: serenata.evented (ev, target) ->
-        dbid = target.dataset.dbid
+        dbid = target.getAttribute("dbid")
         if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
           ajax
             url: "/#{resource}/#{dbid}"
