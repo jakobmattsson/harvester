@@ -33,7 +33,7 @@ var ajax = function(params, callback) {
     },
     error: function(xhr) {
       if (!xhr.responseText) {
-        callback("failed")
+        callback("failed");
       } else {
         callback(JSON.parse(xhr.responseText));
       }
