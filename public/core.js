@@ -73,8 +73,7 @@ var getSerenadeView = function(name) {
 
 var serenata = {
   createModel: function(data) {
-    var model = {};
-    Serenade.extend(model, Serenade.Properties);
+    var model = Serenade({});
     Object.keys(data).forEach(function(key) {
       if (Array.isArray(data[key])) {
         model.set(key, new Serenade.Collection(data[key]));

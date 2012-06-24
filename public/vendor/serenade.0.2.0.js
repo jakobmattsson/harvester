@@ -1,5 +1,5 @@
 /**
- * Serenade.js JavaScript Framework v0.1.3
+ * Serenade.js JavaScript Framework v0.2.0
  * http://github.com/elabs/serenade.js
  *
  * Copyright 2011, Jonas Nicklas, Elabs AB
@@ -93,11 +93,8 @@
       return _results;
     },
     get: function(model, value, format) {
-      if (format == null) {
-        format = true;
-      }
       if (typeof (model != null ? model.get : void 0) === "function") {
-        return model.get(value);
+        return model.get(value, format);
       } else {
         return model != null ? model[value] : void 0;
       }
@@ -111,6 +108,20 @@
     },
     isArray: function(object) {
       return Object.prototype.toString.call(object) === "[object Array]";
+    },
+    indexOf: function(object, search) {
+      var index, item, _i, _len;
+      if (typeof Array.prototype.indexOf === "function") {
+        return Array.prototype.indexOf.call(object, search);
+      } else {
+        for (index = _i = 0, _len = object.length; _i < _len; index = ++_i) {
+          item = object[index];
+          if (item === search) {
+            return index;
+          }
+        }
+        return -1;
+      }
     },
     pairToObject: function(one, two) {
       var temp;
@@ -205,12 +216,12 @@
 };require['./collection'] = new function() {
   var exports = this;
   (function() {
-  var Events, extend, get, getLength, isArrayIndex, serializeObject, _ref,
+  var Events, extend, get, getLength, indexOf, isArrayIndex, serializeObject, _ref,
     __slice = [].slice;
 
   Events = require('./events').Events;
 
-  _ref = require('./helpers'), extend = _ref.extend, serializeObject = _ref.serializeObject, get = _ref.get;
+  _ref = require('./helpers'), indexOf = _ref.indexOf, extend = _ref.extend, serializeObject = _ref.serializeObject, get = _ref.get;
 
   isArrayIndex = function(index) {
     return index.match(/^\d+$/);
@@ -237,8 +248,6 @@
   };
 
   exports.Collection = (function() {
-
-    Collection.name = 'Collection';
 
     extend(Collection.prototype, Events);
 
@@ -347,7 +356,7 @@
         return Array.prototype.forEach.call(this, fun);
       } else {
         this.map(fun);
-        return;
+        return void 0;
       }
     };
 
@@ -369,18 +378,7 @@
     };
 
     Collection.prototype.indexOf = function(search) {
-      var index, item, _i, _len;
-      if (typeof Array.prototype.indexOf === "function") {
-        return Array.prototype.indexOf.call(this, search);
-      } else {
-        for (index = _i = 0, _len = this.length; _i < _len; index = ++_i) {
-          item = this[index];
-          if (item === search) {
-            return index;
-          }
-        }
-        return -1;
-      }
+      return indexOf(this, search);
     };
 
     Collection.prototype.lastIndexOf = function(search) {
@@ -440,7 +438,11 @@
     };
 
     Collection.prototype["delete"] = function(item) {
-      return this.deleteAt(this.indexOf(item));
+      var index;
+      index = this.indexOf(item);
+      if (index !== -1) {
+        return this.deleteAt(index);
+      }
     };
 
     Collection.prototype.serialize = function() {
@@ -596,15 +598,13 @@
   (function() {
   var AssociationCollection, Collection,
     __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   Collection = require('./collection').Collection;
 
   AssociationCollection = (function(_super) {
 
     __extends(AssociationCollection, _super);
-
-    AssociationCollection.name = 'AssociationCollection';
 
     function AssociationCollection(ctor, list) {
       var item;
@@ -657,17 +657,481 @@
 
 }).call(this);
 
+};require['./properties'] = new function() {
+  var exports = this;
+  (function() {
+  var AssociationCollection, Associations, Collection, Events, Properties, addDependencies, addGlobalDependencies, define, exp, extend, get, globalDependencies, indexOf, pairToObject, prefix, serializeObject, triggerChangesTo, triggerGlobal, _ref,
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
+    __hasProp = {}.hasOwnProperty;
+
+  Collection = require('./collection').Collection;
+
+  AssociationCollection = require('./association_collection').AssociationCollection;
+
+  Events = require('./events').Events;
+
+  _ref = require('./helpers'), indexOf = _ref.indexOf, pairToObject = _ref.pairToObject, serializeObject = _ref.serializeObject, extend = _ref.extend, get = _ref.get;
+
+  prefix = "_prop_";
+
+  exp = /^_prop_/;
+
+  define = Object.defineProperties;
+
+  globalDependencies = {};
+
+  addGlobalDependencies = function(object, dependency, names) {
+    var name, subname, type, _i, _len, _ref1, _ref2, _results;
+    if (!object["_glb_" + dependency]) {
+      object["_glb_" + dependency] = true;
+      _results = [];
+      for (_i = 0, _len = names.length; _i < _len; _i++) {
+        name = names[_i];
+        if (name.match(/\./)) {
+          type = "singular";
+          _ref1 = name.split("."), name = _ref1[0], subname = _ref1[1];
+        } else if (name.match(/:/)) {
+          type = "collection";
+          _ref2 = name.split(":"), name = _ref2[0], subname = _ref2[1];
+        }
+        if (subname) {
+          globalDependencies[subname] || (globalDependencies[subname] = []);
+          _results.push(globalDependencies[subname].push({
+            object: object,
+            dependency: dependency,
+            subname: subname,
+            name: name,
+            type: type
+          }));
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    }
+  };
+
+  addDependencies = function(object, dependency, names) {
+    var name, subname, _i, _len, _name, _ref1, _results;
+    names = [].concat(names);
+    _results = [];
+    for (_i = 0, _len = names.length; _i < _len; _i++) {
+      name = names[_i];
+      if (name.match(/[:\.]/)) {
+        _ref1 = name.split(/[:\.]/), name = _ref1[0], subname = _ref1[1];
+      }
+      object[_name = "_dep_" + name] || (object[_name] = []);
+      if (indexOf(object["_dep_" + name], dependency) === -1) {
+        _results.push(object["_dep_" + name].push(dependency));
+      } else {
+        _results.push(void 0);
+      }
+    }
+    return _results;
+  };
+
+  triggerGlobal = function(object, names) {
+    var dependency, name, _i, _len, _results;
+    _results = [];
+    for (_i = 0, _len = names.length; _i < _len; _i++) {
+      name = names[_i];
+      if (globalDependencies[name]) {
+        _results.push((function() {
+          var _j, _len1, _ref1, _results1;
+          _ref1 = globalDependencies[name];
+          _results1 = [];
+          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+            dependency = _ref1[_j];
+            if (dependency.type === "singular") {
+              if (object === dependency.object.get(dependency.name)) {
+                _results1.push(triggerChangesTo(dependency.object, [dependency.dependency]));
+              } else {
+                _results1.push(void 0);
+              }
+            } else if (dependency.type === "collection") {
+              if (__indexOf.call(dependency.object.get(dependency.name), object) >= 0) {
+                _results1.push(triggerChangesTo(dependency.object, [dependency.dependency]));
+              } else {
+                _results1.push(void 0);
+              }
+            } else {
+              _results1.push(void 0);
+            }
+          }
+          return _results1;
+        })());
+      } else {
+        _results.push(void 0);
+      }
+    }
+    return _results;
+  };
+
+  triggerChangesTo = function(object, names) {
+    var changes, findDependencies, name, value, _i, _j, _len, _len1, _results;
+    findDependencies = function(name) {
+      var dependencies, dependency, _i, _len, _results;
+      dependencies = object["_dep_" + name];
+      if (dependencies) {
+        _results = [];
+        for (_i = 0, _len = dependencies.length; _i < _len; _i++) {
+          dependency = dependencies[_i];
+          if (indexOf(names, dependency) === -1) {
+            names.push(dependency);
+            _results.push(findDependencies(dependency));
+          } else {
+            _results.push(void 0);
+          }
+        }
+        return _results;
+      }
+    };
+    for (_i = 0, _len = names.length; _i < _len; _i++) {
+      name = names[_i];
+      findDependencies(name);
+    }
+    changes = {};
+    for (_j = 0, _len1 = names.length; _j < _len1; _j++) {
+      name = names[_j];
+      changes[name] = object.get(name);
+    }
+    object.trigger("change", changes);
+    triggerGlobal(object, names);
+    _results = [];
+    for (name in changes) {
+      if (!__hasProp.call(changes, name)) continue;
+      value = changes[name];
+      _results.push(object.trigger("change:" + name, value));
+    }
+    return _results;
+  };
+
+  Properties = {
+    property: function(name, options) {
+      if (options == null) {
+        options = {};
+      }
+      this[prefix + name] = options;
+      this[prefix + name].name = name;
+      if (this.hasOwnProperty(name)) {
+        this.set(name, this[name]);
+      }
+      if (options.dependsOn) {
+        addDependencies(this, name, options.dependsOn);
+      }
+      if (define) {
+        Object.defineProperty(this, name, {
+          get: function() {
+            return Properties.get.call(this, name);
+          },
+          set: function(value) {
+            return Properties.set.call(this, name, value);
+          },
+          configurable: true
+        });
+      }
+      if (typeof options.serialize === 'string') {
+        return this.property(options.serialize, {
+          get: function() {
+            return this.get(name);
+          },
+          set: function(v) {
+            return this.set(name, v);
+          },
+          configurable: true
+        });
+      }
+    },
+    collection: function(name, options) {
+      if (options == null) {
+        options = {};
+      }
+      extend(options, {
+        get: function() {
+          var _this = this;
+          if (!this.attributes[name]) {
+            this.attributes[name] = new Collection([]);
+            this.attributes[name].bind('change', function() {
+              return triggerChangesTo(_this, [name]);
+            });
+          }
+          return this.attributes[name];
+        },
+        set: function(value) {
+          return this.get(name).update(value);
+        }
+      });
+      return this.property(name, options);
+    },
+    set: function(attributes, value) {
+      var name, names, _ref1;
+      if (typeof attributes === 'string') {
+        attributes = pairToObject(attributes, value);
+      }
+      names = [];
+      for (name in attributes) {
+        value = attributes[name];
+        names.push(name);
+        this.attributes || (this.attributes = {});
+        if (!this[prefix + name]) {
+          Properties.property.call(this, name);
+        }
+        if ((_ref1 = this[prefix + name]) != null ? _ref1.set : void 0) {
+          this[prefix + name].set.call(this, value);
+        } else {
+          this.attributes[name] = value;
+        }
+      }
+      return triggerChangesTo(this, names);
+    },
+    get: function(name, format) {
+      var formatter, value, _ref1, _ref2, _ref3, _ref4;
+      if ((_ref1 = this[prefix + name]) != null ? _ref1.dependsOn : void 0) {
+        addGlobalDependencies(this, name, [].concat(this[prefix + name].dependsOn));
+      }
+      this.attributes || (this.attributes = {});
+      value = ((_ref2 = this[prefix + name]) != null ? _ref2.get : void 0) ? this[prefix + name].get.call(this) : ((_ref3 = this[prefix + name]) != null ? _ref3.hasOwnProperty("default") : void 0) && !this.attributes.hasOwnProperty(name) ? this[prefix + name]["default"] : this.attributes[name];
+      formatter = (_ref4 = this[prefix + name]) != null ? _ref4.format : void 0;
+      if (format && typeof formatter === 'function') {
+        return formatter.call(this, value);
+      } else {
+        return value;
+      }
+    },
+    serialize: function() {
+      var key, name, options, serialized, value, _ref1;
+      serialized = {};
+      for (name in this) {
+        options = this[name];
+        if (name.match(exp)) {
+          if (typeof options.serialize === 'string') {
+            serialized[options.serialize] = serializeObject(this.get(options.name));
+          } else if (typeof options.serialize === 'function') {
+            _ref1 = options.serialize.call(this), key = _ref1[0], value = _ref1[1];
+            serialized[key] = serializeObject(value);
+          } else if (options.serialize) {
+            serialized[options.name] = serializeObject(this.get(options.name));
+          }
+        }
+      }
+      return serialized;
+    }
+  };
+
+  extend(Properties, Events);
+
+  Associations = {
+    belongsTo: function(name, attributes) {
+      if (attributes == null) {
+        attributes = {};
+      }
+      extend(attributes, {
+        set: function(model) {
+          if (model.constructor === Object && attributes.as) {
+            model = new (attributes.as())(model);
+          }
+          return this.attributes[name] = model;
+        }
+      });
+      this.property(name, attributes);
+      return this.property(name + 'Id', {
+        get: function() {
+          return get(this.get(name), 'id');
+        },
+        set: function(id) {
+          return this.attributes[name] = attributes.as().find(id);
+        },
+        dependsOn: name,
+        serialize: attributes.serializeId
+      });
+    },
+    hasMany: function(name, attributes) {
+      if (attributes == null) {
+        attributes = {};
+      }
+      extend(attributes, {
+        get: function() {
+          var _this = this;
+          if (!this.attributes[name]) {
+            this.attributes[name] = new AssociationCollection(attributes.as, []);
+            this.attributes[name].bind('change', function() {
+              return triggerChangesTo(_this, [name]);
+            });
+          }
+          return this.attributes[name];
+        },
+        set: function(value) {
+          return this.get(name).update(value);
+        }
+      });
+      this.property(name, attributes);
+      return this.property(name + 'Ids', {
+        get: function() {
+          return new Collection(this.get(name)).map(function(item) {
+            return get(item, 'id');
+          });
+        },
+        set: function(ids) {
+          var id, objects;
+          objects = (function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = ids.length; _i < _len; _i++) {
+              id = ids[_i];
+              _results.push(attributes.as().find(id));
+            }
+            return _results;
+          })();
+          return this.get(name).update(objects);
+        },
+        dependsOn: name,
+        serialize: attributes.serializeIds
+      });
+    }
+  };
+
+  exports.Properties = Properties;
+
+  exports.Associations = Associations;
+
+  exports.globalDependencies = globalDependencies;
+
+}).call(this);
+
+};require['./model'] = new function() {
+  var exports = this;
+  (function() {
+  var Associations, Cache, Model, Properties, extend, _ref,
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  Cache = require('./cache').Cache;
+
+  _ref = require('./properties'), Associations = _ref.Associations, Properties = _ref.Properties;
+
+  extend = require('./helpers').extend;
+
+  Model = (function() {
+
+    extend(Model.prototype, Properties);
+
+    extend(Model.prototype, Associations);
+
+    Model.property = function() {
+      var _ref1;
+      return (_ref1 = this.prototype).property.apply(_ref1, arguments);
+    };
+
+    Model.collection = function() {
+      var _ref1;
+      return (_ref1 = this.prototype).collection.apply(_ref1, arguments);
+    };
+
+    Model.belongsTo = function() {
+      var _ref1;
+      return (_ref1 = this.prototype).belongsTo.apply(_ref1, arguments);
+    };
+
+    Model.hasMany = function() {
+      var _ref1;
+      return (_ref1 = this.prototype).hasMany.apply(_ref1, arguments);
+    };
+
+    Model.find = function(id) {
+      return Cache.get(this, id) || new this({
+        id: id
+      });
+    };
+
+    Model.property('id', {
+      serialize: true
+    });
+
+    Model.extend = function(name, ctor) {
+      var New;
+      return New = (function(_super) {
+
+        __extends(New, _super);
+
+        New.modelName = name;
+
+        function New() {
+          New.__super__.constructor.apply(this, arguments);
+          if (ctor) {
+            ctor.apply(this, arguments);
+          }
+        }
+
+        return New;
+
+      })(this);
+    };
+
+    function Model(attributes, bypassCache) {
+      var fromCache,
+        _this = this;
+      if (bypassCache == null) {
+        bypassCache = false;
+      }
+      if (!bypassCache) {
+        if (attributes != null ? attributes.id : void 0) {
+          fromCache = Cache.get(this.constructor, attributes.id);
+          if (fromCache) {
+            fromCache.set(attributes);
+            return fromCache;
+          } else {
+            Cache.set(this.constructor, attributes.id, this);
+          }
+        }
+      }
+      if (this.constructor.localStorage) {
+        this.bind('saved', function() {
+          return Cache.store(_this.constructor, _this.get('id'), _this);
+        });
+        if (this.constructor.localStorage !== 'save') {
+          this.bind('change', function() {
+            return Cache.store(_this.constructor, _this.get('id'), _this);
+          });
+        }
+      }
+      this.set(attributes);
+    }
+
+    Model.prototype.save = function() {
+      return this.trigger('saved');
+    };
+
+    return Model;
+
+  })();
+
+  exports.Model = Model;
+
+}).call(this);
+
 };require['./serenade'] = new function() {
   var exports = this;
   (function() {
-  var Cache, Serenade, extend;
+  var Cache, Properties, Serenade, extend, globalDependencies, _ref;
 
   Cache = require('./cache').Cache;
 
   extend = require('./helpers').extend;
 
-  Serenade = {
-    VERSION: '0.1.3',
+  _ref = require("./properties"), Properties = _ref.Properties, globalDependencies = _ref.globalDependencies;
+
+  Serenade = function(attributes) {
+    if (this === root) {
+      return new Serenade(attributes);
+    }
+    this.set(attributes);
+    return this;
+  };
+
+  extend(Serenade.prototype, Properties);
+
+  extend(Serenade, {
+    VERSION: '0.2.0',
     _views: {},
     _controllers: {},
     document: typeof window !== "undefined" && window !== null ? window.document : void 0,
@@ -696,9 +1160,15 @@
       return Cache._storage.clear();
     },
     clearCache: function() {
+      var key, value, _i, _len, _results;
       Serenade.clearIdentityMap();
       Serenade.clearLocalStorage();
-      return Serenade.globalDependencies = {};
+      _results = [];
+      for (key = _i = 0, _len = globalDependencies.length; _i < _len; key = ++_i) {
+        value = globalDependencies[key];
+        _results.push(delete globalDependencies[key]);
+      }
+      return _results;
     },
     unregisterAll: function() {
       Serenade._views = {};
@@ -716,12 +1186,11 @@
         return jQuery(element).bind(event, callback);
       };
     },
-    extend: extend,
     Events: require('./events').Events,
+    Model: require('./model').Model,
     Collection: require('./collection').Collection,
-    Helpers: {},
-    globalDependencies: {}
-  };
+    Helpers: {}
+  });
 
   exports.Serenade = Serenade;
 
@@ -764,11 +1233,9 @@
 
   WHITESPACE = /^[^\r\n\S]+/;
 
-  KEYWORDS = ["IF", "COLLECTION", "IN", "VIEW"];
+  KEYWORDS = ["IF", "COLLECTION", "IN", "VIEW", "UNLESS"];
 
   Lexer = (function() {
-
-    Lexer.name = 'Lexer';
 
     function Lexer() {}
 
@@ -930,8 +1397,6 @@
 
   Node = (function() {
 
-    Node.name = 'Node';
-
     function Node(ast, element) {
       this.ast = ast;
       this.element = element;
@@ -972,8 +1437,6 @@
   Collection = require('./collection').Collection;
 
   DynamicNode = (function() {
-
-    DynamicNode.name = 'DynamicNode';
 
     function DynamicNode(ast) {
       this.ast = ast;
@@ -1088,7 +1551,7 @@
 };require['./compile'] = new function() {
   var exports = this;
   (function() {
-  var Collection, Compile, DynamicNode, Node, Property, Serenade, compile, get, preventDefault, set, _ref;
+  var Collection, Compile, DynamicNode, Node, Property, Serenade, compile, get, getValue, preventDefault, set, _ref;
 
   Serenade = require('./serenade').Serenade;
 
@@ -1100,11 +1563,21 @@
 
   _ref = require('./helpers'), get = _ref.get, set = _ref.set, preventDefault = _ref.preventDefault;
 
+  getValue = function(ast, model) {
+    if (ast.bound && ast.value) {
+      return get(model, ast.value, true);
+    } else if (ast.value) {
+      return ast.value;
+    } else {
+      return model;
+    }
+  };
+
   Property = {
     style: function(ast, node, model, controller) {
       var update;
       update = function() {
-        return node.element.style[ast.name] = ast.bound ? get(model, ast.value, true) : ast.value;
+        return node.element.style[ast.name] = getValue(ast, model);
       };
       update();
       if (ast.bound) {
@@ -1126,6 +1599,9 @@
       element = node.element;
       ((_ref1 = node.ast.name) === "input" || _ref1 === "textarea" || _ref1 === "select") || (function() {
         throw SyntaxError("invalid node type " + node.ast.name + " for two way binding");
+      })();
+      ast.value || (function() {
+        throw SyntaxError("cannot bind to whole model, please specify an attribute to bind to");
       })();
       domUpdated = function() {
         if (element.type === "checkbox") {
@@ -1178,7 +1654,7 @@
       element = node.element;
       update = function() {
         var classes, value;
-        value = ast.bound ? get(model, ast.value, true) : ast.value;
+        value = getValue(ast, model);
         if (ast.name === 'value') {
           return element.value = value || '';
         } else if (node.ast.name === 'input' && ast.name === 'checked') {
@@ -1276,20 +1752,20 @@
       return new Node(ast, element);
     },
     text: function(ast, model, controller) {
-      var getValue, textNode;
-      getValue = function() {
+      var getText, textNode;
+      getText = function() {
         var value;
-        value = ast.bound ? get(model, ast.value, true) : ast.value;
+        value = getValue(ast, model);
         if (value === 0) {
           value = "0";
         }
         return value || "";
       };
-      textNode = Serenade.document.createTextNode(getValue());
+      textNode = Serenade.document.createTextNode(getText());
       if (ast.bound) {
         if (typeof model.bind === "function") {
           model.bind("change:" + ast.value, function() {
-            return textNode.nodeValue = getValue();
+            return textNode.nodeValue = getText();
           });
         }
       }
@@ -1411,6 +1887,34 @@
         model.bind("change:" + ast["arguments"][0], update);
       }
       return dynamic;
+    },
+    unless: function(ast, model, controller) {
+      var dynamic, update;
+      dynamic = new DynamicNode(ast);
+      update = function() {
+        var child, nodes, value;
+        value = get(model, ast["arguments"][0]);
+        if (value) {
+          return dynamic.clear();
+        } else {
+          nodes = (function() {
+            var _i, _len, _ref1, _results;
+            _ref1 = ast.children;
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              child = _ref1[_i];
+              _results.push(compile(child, model, controller));
+            }
+            return _results;
+          })();
+          return dynamic.replace([nodes]);
+        }
+      };
+      update();
+      if (typeof model.bind === "function") {
+        model.bind("change:" + ast["arguments"][0], update);
+      }
+      return dynamic;
     }
   };
 
@@ -1432,12 +1936,11 @@
   var exports = this;
   /* Jison generated parser */
 var parser = (function(){
-undefined
 var parser = {trace: function trace() { },
 yy: {},
-symbols_: {"error":2,"Root":3,"Element":4,"ElementIdentifier":5,"AnyIdentifier":6,"#":7,".":8,"[":9,"]":10,"PropertyList":11,"WHITESPACE":12,"Text":13,"INDENT":14,"ChildList":15,"OUTDENT":16,"TextList":17,"Bound":18,"STRING_LITERAL":19,"Child":20,"TERMINATOR":21,"Instruction":22,"Property":23,"=":24,"!":25,":":26,"-":27,"VIEW":28,"COLLECTION":29,"IF":30,"IN":31,"IDENTIFIER":32,"@":33,"$accept":0,"$end":1},
-terminals_: {2:"error",7:"#",8:".",9:"[",10:"]",12:"WHITESPACE",14:"INDENT",16:"OUTDENT",19:"STRING_LITERAL",21:"TERMINATOR",24:"=",25:"!",26:":",27:"-",28:"VIEW",29:"COLLECTION",30:"IF",31:"IN",32:"IDENTIFIER",33:"@"},
-productions_: [0,[3,0],[3,1],[5,1],[5,3],[5,2],[5,2],[5,3],[4,1],[4,3],[4,4],[4,3],[4,4],[17,1],[17,3],[13,1],[13,1],[15,1],[15,3],[20,1],[20,1],[20,1],[11,1],[11,3],[23,3],[23,3],[23,4],[23,4],[23,3],[23,3],[22,3],[22,3],[22,3],[22,3],[22,3],[22,3],[22,4],[6,1],[6,1],[6,1],[6,1],[6,1],[18,2]],
+symbols_: {"error":2,"Root":3,"Element":4,"ElementIdentifier":5,"AnyIdentifier":6,"#":7,".":8,"[":9,"]":10,"PropertyList":11,"WHITESPACE":12,"Text":13,"INDENT":14,"ChildList":15,"OUTDENT":16,"TextList":17,"Bound":18,"STRING_LITERAL":19,"Child":20,"TERMINATOR":21,"Instruction":22,"Property":23,"=":24,"!":25,":":26,"-":27,"VIEW":28,"COLLECTION":29,"IF":30,"UNLESS":31,"IN":32,"IDENTIFIER":33,"@":34,"$accept":0,"$end":1},
+terminals_: {2:"error",7:"#",8:".",9:"[",10:"]",12:"WHITESPACE",14:"INDENT",16:"OUTDENT",19:"STRING_LITERAL",21:"TERMINATOR",24:"=",25:"!",26:":",27:"-",28:"VIEW",29:"COLLECTION",30:"IF",31:"UNLESS",32:"IN",33:"IDENTIFIER",34:"@"},
+productions_: [0,[3,0],[3,1],[5,1],[5,3],[5,2],[5,2],[5,3],[4,1],[4,3],[4,4],[4,3],[4,4],[17,1],[17,3],[13,1],[13,1],[15,1],[15,3],[20,1],[20,1],[20,1],[11,1],[11,3],[23,3],[23,3],[23,4],[23,4],[23,3],[23,3],[22,3],[22,3],[22,3],[22,3],[22,3],[22,3],[22,3],[22,4],[6,1],[6,1],[6,1],[6,1],[6,1],[6,1],[18,2],[18,1]],
 performAction: function anonymous(yytext,yyleng,yylineno,yy,yystate,$$,_$) {
 
 var $0 = $$.length - 1;
@@ -1592,27 +2095,31 @@ break;
 case 33:this.$ = {
           "arguments": [],
           children: [],
-          type: 'in'
+          type: 'unless'
         };
 break;
 case 34:this.$ = {
+          "arguments": [],
+          children: [],
+          type: 'in'
+        };
+break;
+case 35:this.$ = {
           command: $$[$0],
           "arguments": [],
           children: [],
           type: 'helper'
         };
 break;
-case 35:this.$ = (function () {
+case 36:this.$ = (function () {
         $$[$0-2]["arguments"].push($$[$0].value);
         return $$[$0-2];
       }());
 break;
-case 36:this.$ = (function () {
+case 37:this.$ = (function () {
         $$[$0-3].children = $$[$0-1];
         return $$[$0-3];
       }());
-break;
-case 37:this.$ = $$[$0];
 break;
 case 38:this.$ = $$[$0];
 break;
@@ -1624,9 +2131,15 @@ case 41:this.$ = $$[$0];
 break;
 case 42:this.$ = $$[$0];
 break;
+case 43:this.$ = $$[$0];
+break;
+case 44:this.$ = $$[$0];
+break;
+case 45:this.$ = (function () {}());
+break;
 }
 },
-table: [{1:[2,1],3:1,4:2,5:3,6:4,7:[1,5],8:[1,6],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{1:[3]},{1:[2,2],9:[1,12],12:[1,13],14:[1,14]},{1:[2,8],8:[1,15],9:[2,8],12:[2,8],14:[2,8],16:[2,8],21:[2,8]},{1:[2,3],7:[1,16],8:[2,3],9:[2,3],12:[2,3],14:[2,3],16:[2,3],21:[2,3]},{6:17,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{6:18,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{1:[2,37],7:[2,37],8:[2,37],9:[2,37],10:[2,37],12:[2,37],14:[2,37],16:[2,37],21:[2,37],24:[2,37],25:[2,37],26:[2,37]},{1:[2,38],7:[2,38],8:[2,38],9:[2,38],10:[2,38],12:[2,38],14:[2,38],16:[2,38],21:[2,38],24:[2,38],25:[2,38],26:[2,38]},{1:[2,39],7:[2,39],8:[2,39],9:[2,39],10:[2,39],12:[2,39],14:[2,39],16:[2,39],21:[2,39],24:[2,39],25:[2,39],26:[2,39]},{1:[2,40],7:[2,40],8:[2,40],9:[2,40],10:[2,40],12:[2,40],14:[2,40],16:[2,40],21:[2,40],24:[2,40],25:[2,40],26:[2,40]},{1:[2,41],7:[2,41],8:[2,41],9:[2,41],10:[2,41],12:[2,41],14:[2,41],16:[2,41],21:[2,41],24:[2,41],25:[2,41],26:[2,41]},{6:22,10:[1,19],11:20,23:21,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{13:23,18:24,19:[1,25],33:[1,26]},{4:29,5:3,6:4,7:[1,5],8:[1,6],13:33,15:27,17:31,18:24,19:[1,25],20:28,22:30,27:[1,32],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,26]},{6:34,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{6:35,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{1:[2,5],8:[2,5],9:[2,5],12:[2,5],14:[2,5],16:[2,5],21:[2,5]},{1:[2,6],8:[2,6],9:[2,6],12:[2,6],14:[2,6],16:[2,6],21:[2,6]},{1:[2,9],9:[2,9],12:[2,9],14:[2,9],16:[2,9],21:[2,9]},{10:[1,36],12:[1,37]},{10:[2,22],12:[2,22]},{24:[1,38],26:[1,39]},{1:[2,11],9:[2,11],12:[2,11],14:[2,11],16:[2,11],21:[2,11]},{1:[2,15],9:[2,15],12:[2,15],14:[2,15],16:[2,15],21:[2,15]},{1:[2,16],9:[2,16],12:[2,16],14:[2,16],16:[2,16],21:[2,16]},{6:40,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{16:[1,41],21:[1,42]},{16:[2,17],21:[2,17]},{9:[1,12],12:[1,13],14:[1,14],16:[2,19],21:[2,19]},{12:[1,43],14:[1,44],16:[2,20],21:[2,20]},{12:[1,45],16:[2,21],21:[2,21]},{12:[1,46]},{12:[2,13],16:[2,13],21:[2,13]},{1:[2,7],8:[2,7],9:[2,7],12:[2,7],14:[2,7],16:[2,7],21:[2,7]},{1:[2,4],8:[2,4],9:[2,4],12:[2,4],14:[2,4],16:[2,4],21:[2,4]},{1:[2,10],9:[2,10],12:[2,10],14:[2,10],16:[2,10],21:[2,10]},{6:22,23:47,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{6:48,18:49,19:[1,50],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,26]},{6:22,23:51,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11]},{1:[2,42],9:[2,42],10:[2,42],12:[2,42],14:[2,42],16:[2,42],21:[2,42],25:[2,42]},{1:[2,12],9:[2,12],12:[2,12],14:[2,12],16:[2,12],21:[2,12]},{4:29,5:3,6:4,7:[1,5],8:[1,6],13:33,17:31,18:24,19:[1,25],20:52,22:30,27:[1,32],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,26]},{13:53,18:24,19:[1,25],33:[1,26]},{4:29,5:3,6:4,7:[1,5],8:[1,6],13:33,15:54,17:31,18:24,19:[1,25],20:28,22:30,27:[1,32],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,26]},{13:55,18:24,19:[1,25],33:[1,26]},{28:[1,56],29:[1,57],30:[1,58],31:[1,59],32:[1,60]},{10:[2,23],12:[2,23]},{10:[2,24],12:[2,24],25:[1,61]},{10:[2,25],12:[2,25],25:[1,62]},{10:[2,28],12:[2,28]},{10:[2,29],12:[2,29]},{16:[2,18],21:[2,18]},{12:[2,35],14:[2,35],16:[2,35],21:[2,35]},{16:[1,63],21:[1,42]},{12:[2,14],16:[2,14],21:[2,14]},{12:[2,30],14:[2,30],16:[2,30],21:[2,30]},{12:[2,31],14:[2,31],16:[2,31],21:[2,31]},{12:[2,32],14:[2,32],16:[2,32],21:[2,32]},{12:[2,33],14:[2,33],16:[2,33],21:[2,33]},{12:[2,34],14:[2,34],16:[2,34],21:[2,34]},{10:[2,26],12:[2,26]},{10:[2,27],12:[2,27]},{12:[2,36],14:[2,36],16:[2,36],21:[2,36]}],
+table: [{1:[2,1],3:1,4:2,5:3,6:4,7:[1,5],8:[1,6],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{1:[3]},{1:[2,2],9:[1,13],12:[1,14],14:[1,15]},{1:[2,8],8:[1,16],9:[2,8],12:[2,8],14:[2,8],16:[2,8],21:[2,8]},{1:[2,3],7:[1,17],8:[2,3],9:[2,3],12:[2,3],14:[2,3],16:[2,3],21:[2,3]},{6:18,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{6:19,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{1:[2,38],7:[2,38],8:[2,38],9:[2,38],10:[2,38],12:[2,38],14:[2,38],16:[2,38],21:[2,38],24:[2,38],25:[2,38],26:[2,38]},{1:[2,39],7:[2,39],8:[2,39],9:[2,39],10:[2,39],12:[2,39],14:[2,39],16:[2,39],21:[2,39],24:[2,39],25:[2,39],26:[2,39]},{1:[2,40],7:[2,40],8:[2,40],9:[2,40],10:[2,40],12:[2,40],14:[2,40],16:[2,40],21:[2,40],24:[2,40],25:[2,40],26:[2,40]},{1:[2,41],7:[2,41],8:[2,41],9:[2,41],10:[2,41],12:[2,41],14:[2,41],16:[2,41],21:[2,41],24:[2,41],25:[2,41],26:[2,41]},{1:[2,42],7:[2,42],8:[2,42],9:[2,42],10:[2,42],12:[2,42],14:[2,42],16:[2,42],21:[2,42],24:[2,42],25:[2,42],26:[2,42]},{1:[2,43],7:[2,43],8:[2,43],9:[2,43],10:[2,43],12:[2,43],14:[2,43],16:[2,43],21:[2,43],24:[2,43],25:[2,43],26:[2,43]},{6:23,10:[1,20],11:21,23:22,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{13:24,18:25,19:[1,26],34:[1,27]},{4:30,5:3,6:4,7:[1,5],8:[1,6],13:34,15:28,17:32,18:25,19:[1,26],20:29,22:31,27:[1,33],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12],34:[1,27]},{6:35,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{6:36,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{1:[2,5],8:[2,5],9:[2,5],12:[2,5],14:[2,5],16:[2,5],21:[2,5]},{1:[2,6],8:[2,6],9:[2,6],12:[2,6],14:[2,6],16:[2,6],21:[2,6]},{1:[2,9],9:[2,9],12:[2,9],14:[2,9],16:[2,9],21:[2,9]},{10:[1,37],12:[1,38]},{10:[2,22],12:[2,22]},{24:[1,39],26:[1,40]},{1:[2,11],9:[2,11],12:[2,11],14:[2,11],16:[2,11],21:[2,11]},{1:[2,15],9:[2,15],12:[2,15],14:[2,15],16:[2,15],21:[2,15]},{1:[2,16],9:[2,16],12:[2,16],14:[2,16],16:[2,16],21:[2,16]},{1:[2,45],6:41,9:[2,45],10:[2,45],12:[2,45],14:[2,45],16:[2,45],21:[2,45],25:[2,45],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{16:[1,42],21:[1,43]},{16:[2,17],21:[2,17]},{9:[1,13],12:[1,14],14:[1,15],16:[2,19],21:[2,19]},{12:[1,44],14:[1,45],16:[2,20],21:[2,20]},{12:[1,46],16:[2,21],21:[2,21]},{12:[1,47]},{12:[2,13],16:[2,13],21:[2,13]},{1:[2,7],8:[2,7],9:[2,7],12:[2,7],14:[2,7],16:[2,7],21:[2,7]},{1:[2,4],8:[2,4],9:[2,4],12:[2,4],14:[2,4],16:[2,4],21:[2,4]},{1:[2,10],9:[2,10],12:[2,10],14:[2,10],16:[2,10],21:[2,10]},{6:23,23:48,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{6:49,18:50,19:[1,51],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12],34:[1,27]},{6:23,23:52,28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12]},{1:[2,44],9:[2,44],10:[2,44],12:[2,44],14:[2,44],16:[2,44],21:[2,44],25:[2,44]},{1:[2,12],9:[2,12],12:[2,12],14:[2,12],16:[2,12],21:[2,12]},{4:30,5:3,6:4,7:[1,5],8:[1,6],13:34,17:32,18:25,19:[1,26],20:53,22:31,27:[1,33],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12],34:[1,27]},{13:54,18:25,19:[1,26],34:[1,27]},{4:30,5:3,6:4,7:[1,5],8:[1,6],13:34,15:55,17:32,18:25,19:[1,26],20:29,22:31,27:[1,33],28:[1,7],29:[1,8],30:[1,9],31:[1,10],32:[1,11],33:[1,12],34:[1,27]},{13:56,18:25,19:[1,26],34:[1,27]},{28:[1,57],29:[1,58],30:[1,59],31:[1,60],32:[1,61],33:[1,62]},{10:[2,23],12:[2,23]},{10:[2,24],12:[2,24],25:[1,63]},{10:[2,25],12:[2,25],25:[1,64]},{10:[2,28],12:[2,28]},{10:[2,29],12:[2,29]},{16:[2,18],21:[2,18]},{12:[2,36],14:[2,36],16:[2,36],21:[2,36]},{16:[1,65],21:[1,43]},{12:[2,14],16:[2,14],21:[2,14]},{12:[2,30],14:[2,30],16:[2,30],21:[2,30]},{12:[2,31],14:[2,31],16:[2,31],21:[2,31]},{12:[2,32],14:[2,32],16:[2,32],21:[2,32]},{12:[2,33],14:[2,33],16:[2,33],21:[2,33]},{12:[2,34],14:[2,34],16:[2,34],21:[2,34]},{12:[2,35],14:[2,35],16:[2,35],21:[2,35]},{10:[2,26],12:[2,26]},{10:[2,27],12:[2,27]},{12:[2,37],14:[2,37],16:[2,37],21:[2,37]}],
 defaultActions: {},
 parseError: function parseError(str, hash) {
     throw new Error(str);
@@ -1636,10 +2149,12 @@ parse: function parse(input) {
     this.lexer.setInput(input);
     this.lexer.yy = this.yy;
     this.yy.lexer = this.lexer;
+    this.yy.parser = this;
     if (typeof this.lexer.yylloc == "undefined")
         this.lexer.yylloc = {};
     var yyloc = this.lexer.yylloc;
     lstack.push(yyloc);
+    var ranges = this.lexer.options && this.lexer.options.ranges;
     if (typeof this.yy.parseError === "function")
         this.parseError = this.yy.parseError;
     function popStack(n) {
@@ -1661,25 +2176,13 @@ parse: function parse(input) {
         if (this.defaultActions[state]) {
             action = this.defaultActions[state];
         } else {
-            if (symbol == null)
+            if (symbol === null || typeof symbol == "undefined") {
                 symbol = lex();
+            }
             action = table[state] && table[state][symbol];
         }
         if (typeof action === "undefined" || !action.length || !action[0]) {
-            if (!recovering) {
-                expected = [];
-                for (p in table[state])
-                    if (this.terminals_[p] && p > 2) {
-                        expected.push("'" + this.terminals_[p] + "'");
-                    }
-                var errStr = "";
-                if (this.lexer.showPosition) {
-                    errStr = "Parse error on line " + (yylineno + 1) + ":\n" + this.lexer.showPosition() + "\nExpecting " + expected.join(", ") + ", got '" + this.terminals_[symbol] + "'";
-                } else {
-                    errStr = "Parse error on line " + (yylineno + 1) + ": Unexpected " + (symbol == 1?"end of input":"'" + (this.terminals_[symbol] || symbol) + "'");
-                }
-                this.parseError(errStr, {text: this.lexer.match, token: this.terminals_[symbol] || symbol, line: this.lexer.yylineno, loc: yyloc, expected: expected});
-            }
+            var errStr = "";
         }
         if (action[0] instanceof Array && action.length > 1) {
             throw new Error("Parse Error: multiple actions possible at state: " + state + ", token: " + symbol);
@@ -1707,6 +2210,9 @@ parse: function parse(input) {
             len = this.productions_[action[1]][1];
             yyval.$ = vstack[vstack.length - len];
             yyval._$ = {first_line: lstack[lstack.length - (len || 1)].first_line, last_line: lstack[lstack.length - 1].last_line, first_column: lstack[lstack.length - (len || 1)].first_column, last_column: lstack[lstack.length - 1].last_column};
+            if (ranges) {
+                yyval._$.range = [lstack[lstack.length - (len || 1)].range[0], lstack[lstack.length - 1].range[1]];
+            }
             r = this.performAction.call(yyval, yytext, yyleng, yylineno, this.yy, action[1], vstack, lstack);
             if (typeof r !== "undefined") {
                 return r;
@@ -1729,19 +2235,199 @@ parse: function parse(input) {
     return true;
 }
 };
-return parser;
+undefined/* Jison generated lexer */
+var lexer = (function(){
+var lexer = ({EOF:1,
+parseError:function parseError(str, hash) {
+        if (this.yy.parser) {
+            this.yy.parser.parseError(str, hash);
+        } else {
+            throw new Error(str);
+        }
+    },
+setInput:function (input) {
+        this._input = input;
+        this._more = this._less = this.done = false;
+        this.yylineno = this.yyleng = 0;
+        this.yytext = this.matched = this.match = '';
+        this.conditionStack = ['INITIAL'];
+        this.yylloc = {first_line:1,first_column:0,last_line:1,last_column:0};
+        if (this.options.ranges) this.yylloc.range = [0,0];
+        this.offset = 0;
+        return this;
+    },
+input:function () {
+        var ch = this._input[0];
+        this.yytext += ch;
+        this.yyleng++;
+        this.offset++;
+        this.match += ch;
+        this.matched += ch;
+        var lines = ch.match(/(?:\r\n?|\n).*/g);
+        if (lines) {
+            this.yylineno++;
+            this.yylloc.last_line++;
+        } else {
+            this.yylloc.last_column++;
+        }
+        if (this.options.ranges) this.yylloc.range[1]++;
+
+        this._input = this._input.slice(1);
+        return ch;
+    },
+unput:function (ch) {
+        var len = ch.length;
+        var lines = ch.split(/(?:\r\n?|\n)/g);
+
+        this._input = ch + this._input;
+        this.yytext = this.yytext.substr(0, this.yytext.length-len-1);
+        //this.yyleng -= len;
+        this.offset -= len;
+        var oldLines = this.match.split(/(?:\r\n?|\n)/g);
+        this.match = this.match.substr(0, this.match.length-1);
+        this.matched = this.matched.substr(0, this.matched.length-1);
+
+        if (lines.length-1) this.yylineno -= lines.length-1;
+        var r = this.yylloc.range;
+
+        this.yylloc = {first_line: this.yylloc.first_line,
+          last_line: this.yylineno+1,
+          first_column: this.yylloc.first_column,
+          last_column: lines ?
+              (lines.length === oldLines.length ? this.yylloc.first_column : 0) + oldLines[oldLines.length - lines.length].length - lines[0].length:
+              this.yylloc.first_column - len
+          };
+
+        if (this.options.ranges) {
+            this.yylloc.range = [r[0], r[0] + this.yyleng - len];
+        }
+        return this;
+    },
+more:function () {
+        this._more = true;
+        return this;
+    },
+less:function (n) {
+        this.unput(this.match.slice(n));
+    },
+pastInput:function () {
+        var past = this.matched.substr(0, this.matched.length - this.match.length);
+        return (past.length > 20 ? '...':'') + past.substr(-20).replace(/\n/g, "");
+    },
+upcomingInput:function () {
+        var next = this.match;
+        if (next.length < 20) {
+            next += this._input.substr(0, 20-next.length);
+        }
+        return (next.substr(0,20)+(next.length > 20 ? '...':'')).replace(/\n/g, "");
+    },
+showPosition:function () {
+        var pre = this.pastInput();
+        var c = new Array(pre.length + 1).join("-");
+        return pre + this.upcomingInput() + "\n" + c+"^";
+    },
+next:function () {
+        if (this.done) {
+            return this.EOF;
+        }
+        if (!this._input) this.done = true;
+
+        var token,
+            match,
+            tempMatch,
+            index,
+            col,
+            lines;
+        if (!this._more) {
+            this.yytext = '';
+            this.match = '';
+        }
+        var rules = this._currentRules();
+        for (var i=0;i < rules.length; i++) {
+            tempMatch = this._input.match(this.rules[rules[i]]);
+            if (tempMatch && (!match || tempMatch[0].length > match[0].length)) {
+                match = tempMatch;
+                index = i;
+                if (!this.options.flex) break;
+            }
+        }
+        if (match) {
+            lines = match[0].match(/(?:\r\n?|\n).*/g);
+            if (lines) this.yylineno += lines.length;
+            this.yylloc = {first_line: this.yylloc.last_line,
+                           last_line: this.yylineno+1,
+                           first_column: this.yylloc.last_column,
+                           last_column: lines ? lines[lines.length-1].length-lines[lines.length-1].match(/\r?\n?/)[0].length : this.yylloc.last_column + match[0].length};
+            this.yytext += match[0];
+            this.match += match[0];
+            this.matches = match;
+            this.yyleng = this.yytext.length;
+            if (this.options.ranges) {
+                this.yylloc.range = [this.offset, this.offset += this.yyleng];
+            }
+            this._more = false;
+            this._input = this._input.slice(match[0].length);
+            this.matched += match[0];
+            token = this.performAction.call(this, this.yy, this, rules[index],this.conditionStack[this.conditionStack.length-1]);
+            if (this.done && this._input) this.done = false;
+            if (token) return token;
+            else return;
+        }
+        if (this._input === "") {
+            return this.EOF;
+        } else {
+            return this.parseError('Lexical error on line '+(this.yylineno+1)+'. Unrecognized text.\n'+this.showPosition(),
+                    {text: "", token: null, line: this.yylineno});
+        }
+    },
+lex:function lex() {
+        var r = this.next();
+        if (typeof r !== 'undefined') {
+            return r;
+        } else {
+            return this.lex();
+        }
+    },
+begin:function begin(condition) {
+        this.conditionStack.push(condition);
+    },
+popState:function popState() {
+        return this.conditionStack.pop();
+    },
+_currentRules:function _currentRules() {
+        return this.conditions[this.conditionStack[this.conditionStack.length-1]].rules;
+    },
+topState:function () {
+        return this.conditionStack[this.conditionStack.length-2];
+    },
+pushState:function begin(condition) {
+        this.begin(condition);
+    }});
+lexer.options = {};
+lexer.performAction = function anonymous(yy,yy_,$avoiding_name_collisions,YY_START) {
+
+var YYSTATE=YY_START
+switch($avoiding_name_collisions) {
+}
+};
+lexer.rules = [];
+lexer.conditions = {"INITIAL":{"rules":[],"inclusive":true}};
+return lexer;})()
+parser.lexer = lexer;function Parser () { this.yy = {}; }Parser.prototype = parser;parser.Parser = Parser;
+return new Parser;
 })();
 if (typeof require !== 'undefined' && typeof exports !== 'undefined') {
 exports.parser = parser;
+exports.Parser = parser.Parser;
 exports.parse = function () { return parser.parse.apply(parser, arguments); }
 exports.main = function commonjsMain(args) {
     if (!args[1])
         throw new Error('Usage: '+args[0]+' FILE');
+    var source, cwd;
     if (typeof process !== 'undefined') {
-        var source = require('fs').readFileSync(require('path').join(process.cwd(), args[1]), "utf8");
+        source = require('fs').readFileSync(require('path').resolve(args[1]), "utf8");
     } else {
-        var cwd = require("file").path(require("file").cwd());
-        var source = cwd.join(args[1]).read({charset: "utf-8"});
+        source = require("file").path(require("file").cwd()).join(args[1]).read({charset: "utf-8"});
     }
     return exports.parser.parse(source);
 }
@@ -1749,455 +2435,6 @@ if (typeof module !== 'undefined' && require.main === module) {
   exports.main(typeof process !== 'undefined' ? process.argv.slice(1) : require("system").args);
 }
 }
-};require['./properties'] = new function() {
-  var exports = this;
-  (function() {
-  var AssociationCollection, Associations, Collection, Events, Serenade, addDependencies, addGlobalDependencies, define, exp, extend, get, pairToObject, prefix, serializeObject, triggerChangesTo, triggerGlobal, _ref,
-    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
-    __hasProp = {}.hasOwnProperty;
-
-  Serenade = require('./serenade').Serenade;
-
-  Collection = require('./collection').Collection;
-
-  AssociationCollection = require('./association_collection').AssociationCollection;
-
-  Events = require('./events').Events;
-
-  _ref = require('./helpers'), pairToObject = _ref.pairToObject, serializeObject = _ref.serializeObject, extend = _ref.extend, get = _ref.get;
-
-  prefix = "_prop_";
-
-  exp = /^_prop_/;
-
-  define = Object.defineProperties;
-
-  addGlobalDependencies = function(object, dependency, names) {
-    var name, subname, type, _base, _i, _len, _ref1, _ref2, _results;
-    if (!object["_glb_" + dependency]) {
-      object["_glb_" + dependency] = true;
-      _results = [];
-      for (_i = 0, _len = names.length; _i < _len; _i++) {
-        name = names[_i];
-        if (name.match(/\./)) {
-          type = "singular";
-          _ref1 = name.split("."), name = _ref1[0], subname = _ref1[1];
-        } else if (name.match(/:/)) {
-          type = "collection";
-          _ref2 = name.split(":"), name = _ref2[0], subname = _ref2[1];
-        }
-        if (subname) {
-          (_base = Serenade.globalDependencies)[subname] || (_base[subname] = []);
-          _results.push(Serenade.globalDependencies[subname].push({
-            object: object,
-            dependency: dependency,
-            subname: subname,
-            name: name,
-            type: type
-          }));
-        } else {
-          _results.push(void 0);
-        }
-      }
-      return _results;
-    }
-  };
-
-  addDependencies = function(object, dependency, names) {
-    var name, subname, _i, _len, _name, _ref1, _results;
-    names = [].concat(names);
-    _results = [];
-    for (_i = 0, _len = names.length; _i < _len; _i++) {
-      name = names[_i];
-      if (name.match(/[:\.]/)) {
-        _ref1 = name.split(/[:\.]/), name = _ref1[0], subname = _ref1[1];
-      }
-      object[_name = "_dep_" + name] || (object[_name] = []);
-      if (object["_dep_" + name].indexOf(dependency) === -1) {
-        _results.push(object["_dep_" + name].push(dependency));
-      } else {
-        _results.push(void 0);
-      }
-    }
-    return _results;
-  };
-
-  triggerGlobal = function(object, names) {
-    var dependency, name, _i, _len, _results;
-    _results = [];
-    for (_i = 0, _len = names.length; _i < _len; _i++) {
-      name = names[_i];
-      if (Serenade.globalDependencies[name]) {
-        _results.push((function() {
-          var _j, _len1, _ref1, _results1;
-          _ref1 = Serenade.globalDependencies[name];
-          _results1 = [];
-          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-            dependency = _ref1[_j];
-            if (dependency.type === "singular") {
-              if (object === dependency.object.get(dependency.name)) {
-                _results1.push(triggerChangesTo(dependency.object, [dependency.dependency]));
-              } else {
-                _results1.push(void 0);
-              }
-            } else if (dependency.type === "collection") {
-              if (__indexOf.call(dependency.object.get(dependency.name), object) >= 0) {
-                _results1.push(triggerChangesTo(dependency.object, [dependency.dependency]));
-              } else {
-                _results1.push(void 0);
-              }
-            } else {
-              _results1.push(void 0);
-            }
-          }
-          return _results1;
-        })());
-      } else {
-        _results.push(void 0);
-      }
-    }
-    return _results;
-  };
-
-  triggerChangesTo = function(object, names) {
-    var changes, findDependencies, name, value, _i, _j, _len, _len1, _results;
-    findDependencies = function(name) {
-      var dependencies, dependency, _i, _len, _results;
-      dependencies = object["_dep_" + name];
-      if (dependencies) {
-        _results = [];
-        for (_i = 0, _len = dependencies.length; _i < _len; _i++) {
-          dependency = dependencies[_i];
-          if (names.indexOf(dependency) === -1) {
-            names.push(dependency);
-            _results.push(findDependencies(dependency));
-          } else {
-            _results.push(void 0);
-          }
-        }
-        return _results;
-      }
-    };
-    for (_i = 0, _len = names.length; _i < _len; _i++) {
-      name = names[_i];
-      findDependencies(name);
-    }
-    changes = {};
-    for (_j = 0, _len1 = names.length; _j < _len1; _j++) {
-      name = names[_j];
-      changes[name] = object.get(name);
-    }
-    object.trigger("change", changes);
-    triggerGlobal(object, names);
-    _results = [];
-    for (name in changes) {
-      if (!__hasProp.call(changes, name)) continue;
-      value = changes[name];
-      _results.push(object.trigger("change:" + name, value));
-    }
-    return _results;
-  };
-
-  Serenade.Properties = {
-    property: function(name, options) {
-      if (options == null) {
-        options = {};
-      }
-      this[prefix + name] = options;
-      this[prefix + name].name = name;
-      if (this.hasOwnProperty(name)) {
-        this[prefix + name]["default"] = this[name];
-      }
-      if (options.dependsOn) {
-        addDependencies(this, name, options.dependsOn);
-      }
-      if (define) {
-        Object.defineProperty(this, name, {
-          get: function() {
-            if (options.dependsOn) {
-              addGlobalDependencies(this, name, [].concat(options.dependsOn));
-            }
-            return Serenade.Properties.get.call(this, name);
-          },
-          set: function(value) {
-            return Serenade.Properties.set.call(this, name, value);
-          },
-          configurable: true
-        });
-      }
-      if (typeof options.serialize === 'string') {
-        return this.property(options.serialize, {
-          get: function() {
-            return this.get(name);
-          },
-          set: function(v) {
-            return this.set(name, v);
-          },
-          configurable: true
-        });
-      }
-    },
-    collection: function(name, options) {
-      if (options == null) {
-        options = {};
-      }
-      extend(options, {
-        get: function() {
-          var _this = this;
-          if (!this.attributes[name]) {
-            this.attributes[name] = new Collection([]);
-            this.attributes[name].bind('change', function() {
-              return triggerChangesTo(_this, [name]);
-            });
-          }
-          return this.attributes[name];
-        },
-        set: function(value) {
-          return this.get(name).update(value);
-        }
-      });
-      return this.property(name, options);
-    },
-    set: function(attributes, value) {
-      var name, names, _ref1;
-      if (typeof attributes === 'string') {
-        attributes = pairToObject(attributes, value);
-      }
-      names = [];
-      for (name in attributes) {
-        value = attributes[name];
-        names.push(name);
-        this.attributes || (this.attributes = {});
-        if ((_ref1 = this[prefix + name]) != null ? _ref1.set : void 0) {
-          this[prefix + name].set.call(this, value);
-        } else {
-          this.attributes[name] = value;
-        }
-      }
-      return triggerChangesTo(this, names);
-    },
-    get: function(name, format) {
-      var formatter, value, _ref1, _ref2, _ref3;
-      this.attributes || (this.attributes = {});
-      value = ((_ref1 = this[prefix + name]) != null ? _ref1.get : void 0) ? this[prefix + name].get.call(this) : ((_ref2 = this[prefix + name]) != null ? _ref2.hasOwnProperty("default") : void 0) && !this.attributes.hasOwnProperty(name) ? this[prefix + name]["default"] : this.attributes[name];
-      formatter = (_ref3 = this[prefix + name]) != null ? _ref3.format : void 0;
-      if (format && typeof formatter === 'function') {
-        return formatter.call(this, value);
-      } else {
-        return value;
-      }
-    },
-    serialize: function() {
-      var key, name, options, serialized, value, _ref1;
-      serialized = {};
-      for (name in this) {
-        options = this[name];
-        if (name.match(exp)) {
-          if (typeof options.serialize === 'string') {
-            serialized[options.serialize] = serializeObject(this.get(options.name));
-          } else if (typeof options.serialize === 'function') {
-            _ref1 = options.serialize.call(this), key = _ref1[0], value = _ref1[1];
-            serialized[key] = serializeObject(value);
-          } else if (options.serialize) {
-            serialized[options.name] = serializeObject(this.get(options.name));
-          }
-        }
-      }
-      return serialized;
-    }
-  };
-
-  extend(Serenade.Properties, Events);
-
-  Associations = {
-    belongsTo: function(name, attributes) {
-      if (attributes == null) {
-        attributes = {};
-      }
-      extend(attributes, {
-        set: function(model) {
-          if (model.constructor === Object && attributes.as) {
-            model = new (attributes.as())(model);
-          }
-          return this.attributes[name] = model;
-        }
-      });
-      this.property(name, attributes);
-      return this.property(name + 'Id', {
-        get: function() {
-          return get(this.get(name), 'id');
-        },
-        set: function(id) {
-          return this.attributes[name] = attributes.as().find(id);
-        },
-        dependsOn: name,
-        serialize: attributes.serializeId
-      });
-    },
-    hasMany: function(name, attributes) {
-      if (attributes == null) {
-        attributes = {};
-      }
-      extend(attributes, {
-        get: function() {
-          var _this = this;
-          if (!this.attributes[name]) {
-            this.attributes[name] = new AssociationCollection(attributes.as, []);
-            this.attributes[name].bind('change', function() {
-              return triggerChangesTo(_this, [name]);
-            });
-          }
-          return this.attributes[name];
-        },
-        set: function(value) {
-          return this.get(name).update(value);
-        }
-      });
-      this.property(name, attributes);
-      return this.property(name + 'Ids', {
-        get: function() {
-          return new Collection(this.get(name)).map(function(item) {
-            return get(item, 'id');
-          });
-        },
-        set: function(ids) {
-          var id, objects;
-          objects = (function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = ids.length; _i < _len; _i++) {
-              id = ids[_i];
-              _results.push(attributes.as().find(id));
-            }
-            return _results;
-          })();
-          return this.get(name).update(objects);
-        },
-        dependsOn: name,
-        serialize: attributes.serializeIds
-      });
-    }
-  };
-
-  exports.Associations = Associations;
-
-}).call(this);
-
-};require['./model'] = new function() {
-  var exports = this;
-  (function() {
-  var Associations, Cache, Serenade, extend,
-    __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
-
-  Serenade = require('./serenade').Serenade;
-
-  Cache = require('./cache').Cache;
-
-  Associations = require('./properties').Associations;
-
-  extend = require('./helpers').extend;
-
-  Serenade.Model = (function() {
-
-    Model.name = 'Model';
-
-    extend(Model.prototype, Serenade.Properties);
-
-    extend(Model.prototype, Associations);
-
-    Model.property = function() {
-      var _ref;
-      return (_ref = this.prototype).property.apply(_ref, arguments);
-    };
-
-    Model.collection = function() {
-      var _ref;
-      return (_ref = this.prototype).collection.apply(_ref, arguments);
-    };
-
-    Model.belongsTo = function() {
-      var _ref;
-      return (_ref = this.prototype).belongsTo.apply(_ref, arguments);
-    };
-
-    Model.hasMany = function() {
-      var _ref;
-      return (_ref = this.prototype).hasMany.apply(_ref, arguments);
-    };
-
-    Model.find = function(id) {
-      return Cache.get(this, id) || new this({
-        id: id
-      });
-    };
-
-    Model.property('id', {
-      serialize: true
-    });
-
-    Model.extend = function(name, ctor) {
-      var New;
-      return New = (function(_super) {
-
-        __extends(New, _super);
-
-        New.name = 'New';
-
-        New.modelName = name;
-
-        function New() {
-          New.__super__.constructor.apply(this, arguments);
-          if (ctor) {
-            ctor.apply(this, arguments);
-          }
-        }
-
-        return New;
-
-      })(this);
-    };
-
-    function Model(attributes, bypassCache) {
-      var fromCache,
-        _this = this;
-      if (bypassCache == null) {
-        bypassCache = false;
-      }
-      if (!bypassCache) {
-        if (attributes != null ? attributes.id : void 0) {
-          fromCache = Cache.get(this.constructor, attributes.id);
-          if (fromCache) {
-            fromCache.set(attributes);
-            this.set(attributes);
-            return fromCache;
-          } else {
-            Cache.set(this.constructor, attributes.id, this);
-          }
-        }
-      }
-      if (this.constructor.localStorage === 'save') {
-        this.bind('saved', function() {
-          return Cache.store(_this.constructor, _this.get('id'), _this);
-        });
-      } else if (this.constructor.localStorage) {
-        this.bind('change', function() {
-          return Cache.store(_this.constructor, _this.get('id'), _this);
-        });
-      }
-      this.set(attributes);
-    }
-
-    Model.prototype.save = function() {
-      return this.trigger('saved');
-    };
-
-    return Model;
-
-  })();
-
-}).call(this);
-
 };require['./view'] = new function() {
   var exports = this;
   (function() {
@@ -2227,8 +2464,6 @@ if (typeof module !== 'undefined' && require.main === module) {
   };
 
   View = (function() {
-
-    View.name = 'View';
 
     function View(name, view) {
       this.name = name;
