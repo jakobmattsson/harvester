@@ -23,6 +23,11 @@ window.stringToNodes = (s) ->
   div.innerHTML = s
   div.childNodes
 
+window.replaceHTML = (id, node) ->
+  dataview = document.getElementById id
+  underline.removeChildren(dataview)
+  dataview.appendChild(node)
+
 window.renderHTML = (nodes) ->
   dataview = document.getElementById 'dataview'
   underline.removeChildren(dataview)

@@ -1,6 +1,15 @@
 page
   route: '/:domain'
   middleware: [authMiddle]
+  serenadeReplace: 'dataview'
+  serenadeView: '''
+    div
+      div "Start with one of these"
+      ul
+        - collection @roots
+          li
+            a[href=@dst] @name
+  '''
   sources:
     url: '/'
   callback: (args, done) ->
@@ -8,6 +17,4 @@ page
       roots: args.url.roots.map (x) ->
         name: x
         dst: "/#{args.domain}/#{x}"
-
-    render('root', model)
-    done()
+    done({ model: model })

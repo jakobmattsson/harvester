@@ -4,6 +4,30 @@ page
   sources:
     data: "/:resource/:baseid"
     meta: "/meta/:resource"
+  serenadeReplace: 'dataview'
+  serenadeView: '''
+    div
+      div "Here is the item"
+      div @item
+      button[event:click=del!] "delete"
+
+      ul
+        - collection @owned
+          li
+            a[href=@dst] @name
+
+      button[event:click=startUpdate! style:display=@updateDisplayInv] "change"
+
+      div[style:display=@updateDisplay]
+        div
+          - collection @pairs
+            div
+              span @key
+              input[type="text" binding:keyup=@value]
+
+        button[event:click=cancelUpdate!] "cancel"
+        button[event:click=submitUpdate!] "submit"
+  '''
   callback: (args, done) ->
     metaMap = args.meta.fields.toMap('name')
     pairs = underline.toKeyValues(args.data).filter (x) -> !metaMap[x.key].readonly
@@ -48,5 +72,4 @@ page
             else
               router.trigger("/#{args.domain}/#{args.resource}")
 
-    render('get', model, controller)
-    done()
+    done({ model: model, controller: controller })
