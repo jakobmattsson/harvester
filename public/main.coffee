@@ -120,7 +120,10 @@ window.auth =
     ajax.username = username
     ajax.password = password
   get: (domain) -> cookies.get("harvester-#{domain}") || {}
-  clear: (domain) -> cookies.set("harvester-#{domain}")
+  clear: (domain) ->
+    cookies.set("harvester-#{domain}")
+    ajax.username = null
+    ajax.password = null
 
 
 setTimeout ->
