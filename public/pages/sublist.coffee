@@ -1,5 +1,6 @@
 page
   route: '/:domain/:resource/:baseid/:subresource'
+  middleware: [authMiddle]
   sources:
     sub: "/:resource/:baseid/:subresource"
     meta: "/meta/:subresource"
