@@ -128,3 +128,54 @@ setTimeout ->
 
   router.trigger(window.location.pathname)
 , 1
+
+
+
+
+
+
+
+window.multiGet = (paths, callback) ->
+  keyValuePairs = Object.keys(paths).map (key) ->
+    key: key
+    value: paths[key]
+
+  async.map keyValuePairs.map((kp) -> kp.value), (item, callback) ->
+    ajax({ url: item }, callback)
+  , (err, data) ->
+    if err
+      callback(err)
+      return
+    callback null, keyValuePairs.reduce (acc, item, i) ->
+      acc[item.key] = data[i]
+      acc
+    , {}
+
+
+
+window.getSerenadeView = (name) ->
+  matches = argsToArray(document.getElementsByTagName('script')).filter (x) ->
+    x.getAttribute("data-path") == '/templates/' + name + '.serenade';
+
+  x = matches.first()
+
+  if x
+    return Serenade.view(x.innerHTML)
+  else
+    throw "fail"
+
+
+window.serenata =
+  createModel: (data) ->
+    model = Serenade({})
+    Object.keys(data).forEach (key) ->
+      if Array.isArray(data[key])
+        model.set(key, new Serenade.Collection(data[key]))
+      else
+        model.set(key, data[key])
+    model
+
+  evented: (callback) ->
+    (data, e) ->
+      target = e.target || e.srcElement
+      callback.call(this, null, e)
