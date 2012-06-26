@@ -46,7 +46,7 @@ window.safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
     if error
       if error.code == 401
-        render('error', 'Access not allowed')
+        render('error', { message: 'Access not allowed' })
       else
         render('error', { message: error.err || error.code || 'multiGet failed' })
     else
