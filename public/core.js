@@ -1,42 +1,55 @@
 var ajax = function(params, callback) {
-  var $ = require('commonjs-jquery');
   var url = params.url;
+  var currentOrigin = location.protocol + '//' + location.host;
 
-  var h = window.location.hash
-  if (h) {
-    params.username = h.slice(1).split('#')[0];
-    params.password = h.slice(1).split('#')[1];
+  var baseUrl = params.baseUrl || ajax.baseUrl;
+
+  if (ajax.username) {
+    params.username = ajax.username;
+    params.password = ajax.password;
   }
 
-  if (ajax.baseUrl) {
-    url = ajax.baseUrl + params.url;
+  if (baseUrl && params.url.indexOf('http://') === -1) {
+    url = baseUrl + params.url;
   }
 
-  $.ajax({
-    type: params.type || 'GET',
-    cache: false,
-    url: url,
-    data: params.data || {},
-    dataType: 'json',
-    crossDomain: true,
-    xhrFields: {
-      withCredentials: true
-    },
-    beforeSend : function(req) {
-      if (params.username || params.password) {
-        var str = (params.username || '') + ':' + (params.password || '');
-        req.setRequestHeader('Authorization', "Basic " + btoa(str));
-      }
-    },
-    success: function(data) {
-      callback(null, data);
-    },
-    error: function(xhr) {
-      if (!xhr.responseText) {
-        callback("failed");
-      } else {
-        callback(JSON.parse(xhr.responseText));
-      }
+  var reqMet = null;
+
+  if (parseOrigin(url) == currentOrigin) {
+    reqMet = request;
+  } else {
+    if (baseUrl) {
+      viaduct.host(baseUrl + '/viaduct.html');
+    }
+    reqMet = viaduct.request;
+  }
+
+  var qs = {
+    metabody: true
+  };
+
+  var querystring = Object.keys(qs).map(function(key) { return key + "=" + qs[key]; }).join("&");
+  if (url.indexOf('?') === -1) {
+    querystring = "?" + querystring;
+  } else {
+    querystring = "&" + querystring;
+  }
+
+  url += querystring;
+
+  reqMet({ // maybe use browser-request directly
+    json: params.data || {},
+    method: params.type || 'GET',
+    auth: { username: params.username, password: params.password },
+    url: url
+  }, function(err, response, body) {
+    console.log(response);
+    if (err || response.statusCode != 200) {
+      callback({ msg: 'Failed' });
+    } else if (body.code != 200) {
+      callback({ code: body.code })
+    } else {
+      callback(null, body.body);
     }
   });
 };

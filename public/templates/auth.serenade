@@ -1,0 +1,7 @@
+div
+  div "Authentication"
+  - if @username
+    button[event:click=login! style="margin-left:10px"] "Switch user"
+    button[event:click=logout! style="margin-left:10px"] "Log out " @username
+  - unless @username
+    button[event:click=login! style="margin-left:10px"] "Log in"

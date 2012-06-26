@@ -14,13 +14,16 @@
   <body>
     <noscript>This page requires you to enable JavaScript</noscript>
     <div id="dataview"></div>
+    <div id="auth"></div>
     <!--OPRA npm
       async as:async
       sugar@1.1.1 as:sugar
+      underscore@1.3.3 as:_
       path-router@0.1.5
       commonjs-jquery@1.7.1 as:jQuery as:$
       protoplast@0.0.2 as:protoplast
-      viaduct-client@0.1.6 as:viaduct
+      viaduct-client@0.1.8 as:viaduct
+      jakobmattsson-client-cookies@0.1.5 as:cookies
       # Base64@0.1.0 as:base64
     -->
     <!--OPRA module
@@ -33,6 +36,8 @@
       /vendor/browser-request-0.2.1.js # for experimentation only. should use viaduct instead.
       /core.js
       /main.coffee
+      /page.coffee
+      /middleware/*.{coffee,js}
       /pages/*.{coffee,js}
     -->
   </body>

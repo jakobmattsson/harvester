@@ -1,28 +1,27 @@
-router.register '/:domain/:resource/:baseid/:subresource', (args) ->
-  resource = args.resource
-  baseid = args.baseid
-  subresource = args.subresource
-  safeMultiGet
-    sub: "/#{resource}/#{baseid}/#{subresource}"
-    meta: "/meta/#{subresource}"
-  , (data) ->
+page
+  route: '/:domain/:resource/:baseid/:subresource'
+  sources:
+    sub: "/:resource/:baseid/:subresource"
+    meta: "/meta/:subresource"
+  callback: (args, done) ->
     model = serenata.createModel
       appends: [1]
-      items: data.sub.map (x) -> resourceToItem(args.domain, x, subresource)
+      items: args.sub.map (x) -> resourceToItem(args.domain, x, args.subresource)
 
     controller =
       del: serenata.evented (ev, target) ->
         dbid = target.getAttribute("dbid")
-        if (confirm("Are you sure you want to delete #{subresource}/#{dbid}"))
+        if (confirm("Are you sure you want to delete #{args.subresource}/#{dbid}"))
           ajax
-            url: "/#{subresource}/#{dbid}"
+            url: "/#{args.subresource}/#{dbid}"
             type: 'DELETE'
           , (err, data) ->
             alert(err.err) if err
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        creationDialog "/#{resource}/#{baseid}/#{subresource}", data.meta, (err, result) ->
-          model.get('items').push(resourceToItem(args.domain, result, subresource))
+        creationDialog "/#{args.resource}/#{args.baseid}/#{args.subresource}", args.meta, (err, result) ->
+          model.get('items').push(resourceToItem(args.domain, result, args.subresource))
 
     render('list', model, controller)
+    done()

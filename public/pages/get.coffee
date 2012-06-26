@@ -1,23 +1,20 @@
-router.register '/:domain/:resource/:baseid', (args) ->
-  domain = args.domain
-  resource = args.resource
-  dbid = args.baseid
-  safeMultiGet
-    data: "/#{resource}/#{dbid}"
-    meta: "/meta/#{resource}"
-  , (dd) ->
-
-    metaMap = dd.meta.fields.toMap('name')
-    pairs = underline.toKeyValues(dd.data).filter (x) -> !metaMap[x.key].readonly
+page
+  route: '/:domain/:resource/:baseid'
+  sources:
+    data: "/:resource/:baseid"
+    meta: "/meta/:resource"
+  callback: (args, done) ->
+    metaMap = args.meta.fields.toMap('name')
+    pairs = underline.toKeyValues(args.data).filter (x) -> !metaMap[x.key].readonly
 
     model = serenata.createModel
-      item: JSON.stringify(dd.data)
+      item: JSON.stringify(args.data)
       pairs: pairs
       updateDisplay: 'none'
       updateDisplayInv: 'block'
-      owned: dd.meta.owns.map (x) ->
+      owned: args.meta.owns.map (x) ->
         name: x
-        dst: "/#{domain}/#{resource}/#{dbid}/#{x}"
+        dst: "/#{args.domain}/#{args.resource}/#{args.baseid}/#{x}"
 
     controller =
       startUpdate: serenata.evented (ev, target) ->
@@ -30,7 +27,7 @@ router.register '/:domain/:resource/:baseid', (args) ->
 
       submitUpdate: serenata.evented (ev, target) ->
         ajax
-          url: "/#{resource}/#{dbid}"
+          url: "/#{args.resource}/#{args.baseid}"
           type: 'PUT'
           data: pairs.toMap('key', 'value')
         , (err, data) ->
@@ -40,15 +37,15 @@ router.register '/:domain/:resource/:baseid', (args) ->
             model.set('item', JSON.stringify(data))
 
       del: serenata.evented (ev, target) ->
-        if (confirm("Are you sure you want to delete #{resource}/#{dbid}"))
+        if (confirm("Are you sure you want to delete #{args.resource}/#{args.baseid}"))
           ajax
-            url: "/#{resource}/#{dbid}"
+            url: "/#{args.resource}/#{args.baseid}"
             type: 'DELETE'
           , (err, data) ->
             if err
               alert(err.err)
             else
-              router.trigger("/#{domain}/#{resource}")
+              router.trigger("/#{args.domain}/#{args.resource}")
 
     render('get', model, controller)
-
+    done()

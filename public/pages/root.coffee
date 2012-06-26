@@ -1,10 +1,13 @@
-router.register '/:domain', (args) ->
-  safeMultiGet
+page
+  route: '/:domain'
+  middleware: [authMiddle]
+  sources:
     url: '/'
-  , (data) ->
+  callback: (args, done) ->
     model = serenata.createModel
-      roots: data.url.roots.map (x) ->
+      roots: args.url.roots.map (x) ->
         name: x
         dst: "/#{args.domain}/#{x}"
 
     render('root', model)
+    done()
