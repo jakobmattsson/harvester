@@ -24,5 +24,5 @@ page
         creationDialog "/#{args.resource}/#{args.baseid}/#{args.subresource}", args.meta, (err, result) ->
           model.get('items').push(resourceToItem(args.domain, result, args.subresource))
 
-    render('list', model, controller)
+    renderReplace('dataview', 'list', model, controller)
     done()

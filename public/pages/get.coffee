@@ -70,6 +70,6 @@ page
             if err
               alert(err.err)
             else
-              router.trigger("/#{args.domain}/#{args.resource}")
+              window.location = "/#{args.domain}/#{args.resource}"
 
     done({ model: model, controller: controller })

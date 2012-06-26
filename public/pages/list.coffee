@@ -25,5 +25,5 @@ page
         creationDialog "/#{args.resource}", args.meta, (err, newObj) ->
           model.get('items').push(resourceToItem(args.domain, newObj, args.resource))
 
-    render('list', model, controller)
+    renderReplace('dataview', 'list', model, controller)
     done()

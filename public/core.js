@@ -15,7 +15,7 @@ var ajax = function(params, callback) {
 
   var reqMet = null;
 
-  if (parseOrigin(url) == currentOrigin) {
+  if (bunderline.parseOrigin(url) == currentOrigin) {
     reqMet = request;
   } else {
     if (baseUrl) {

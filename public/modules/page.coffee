@@ -1,4 +1,4 @@
-middlewareCreator = (page) -> (params) ->
+exports.middlewareCreator = (page) -> (params) ->
   augmented = 
     callback: (args, done) ->
       mid = params.middleware ? []
@@ -12,7 +12,7 @@ middlewareCreator = (page) -> (params) ->
 
 
 
-sourceCreator = (page, resolver) -> (params) ->
+exports.sourceCreator = (page, resolver) -> (params) ->
   augmented = 
     callback: (args, done) ->
       sources = params.sources ? {}
@@ -30,10 +30,9 @@ sourceCreator = (page, resolver) -> (params) ->
 
 
 
-viewCreator = (page) -> (params) ->
+exports.viewCreator = (page) -> (params) ->
 
-  if !params.serenadeReplace? || !params.serenadeView?
-    return page(params)
+  return page(params) if !params.serenadeReplace? || !params.serenadeView?
 
   augmented = 
     callback: (args, done) ->
@@ -48,9 +47,3 @@ viewCreator = (page) -> (params) ->
 
 
 
-
-
-window.page = (params) -> router.register params.route, params.callback
-window.page = sourceCreator(window.page, safeMultiGet)
-window.page = middlewareCreator(window.page)
-window.page = viewCreator(window.page)
