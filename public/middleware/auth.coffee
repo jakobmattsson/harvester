@@ -7,7 +7,7 @@ window.authMiddle =
     cont =
       login: serenata.evented () ->
 
-        runDialog 'login'
+        runDialog 'login',
           callback: (err, data) ->
             auth.set(args.domain, data.username, data.password)
             model2.username = data.username

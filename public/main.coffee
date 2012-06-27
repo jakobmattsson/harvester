@@ -120,15 +120,17 @@ window.page = pagemod.viewCreator(window.page)
 
 
 do ->
-  dialogs = {}
+  dialogRouter = require('modules/router').create()
+
 
   window.dialog = (params) ->
-    dialogs[params.route] = params.callback
+    dialogRouter.register params.route, params.callback
 
   window.runDialog = (name, args, done) ->
-    dialogs[name](args, done || ->)
+    dialogRouter.trigger name, done, args
 
 
+  window.dialog = pagemod.sourceCreator(window.dialog, safeMultiGet)
   window.dialog = pagemod.modalHtml(window.dialog)
   window.dialog = pagemod.viewModal(window.dialog)
 

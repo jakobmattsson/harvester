@@ -22,9 +22,9 @@ page
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
       create: serenata.evented (ev, target) ->
-        runDialog 'creation'
+        runDialog "creation",
+          resource: args.resource
           postUrl: "/#{args.resource}"
-          metaFields: args.meta
           callback: (err, newObj) ->
             model.get('items').push(resourceToItem(args.domain, newObj, args.resource))
 

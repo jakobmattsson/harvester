@@ -18,11 +18,10 @@ dialog
       div
         button[event:click=send!] "submit"
   '''
+  sources:
+    meta: "/meta/:resource"
   callback: (args, done) ->
-    postUrl = args.postUrl
-    metaFields = args.metaFields
-
-    fields = metaFields.fields.filter (field) -> !field.readonly
+    fields = args.meta.fields.filter (field) -> !field.readonly
 
     new_model = serenata.createModel
       required: fields.filter((field) -> field.required).map (field) ->
@@ -42,7 +41,7 @@ dialog
         submitData = all.toMap('title', 'value')
 
         ajax
-          url: postUrl
+          url: args.postUrl
           type: 'POST'
           data: submitData
         , (err, data) ->
