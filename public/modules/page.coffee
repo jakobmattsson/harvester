@@ -47,3 +47,41 @@ exports.viewCreator = (page) -> (params) ->
 
 
 
+
+exports.viewModal = (page) -> (params) ->
+
+  return page(params) if !params.serenadeView?
+
+  augmented =
+    callback: (args, done) ->
+      params.callback args, (mo) ->
+        node = Serenade.view(params.serenadeView).render(mo.model, mo.controller || {})
+        done({ html: node })
+
+  page(_.extend({}, params, augmented))
+
+
+
+
+
+exports.modalHtml = (page) -> (params) ->
+
+  augmented =
+    callback: (args, done) ->
+      returnsHtml = false
+
+      augArgs =
+        callback: (err, data) ->
+          if returnsHtml
+            facebox.close()
+          args.callback(err, data) if args.callback?
+
+      allArgs = _.extend({}, args, augArgs)
+
+      params.callback allArgs, (mo) ->
+        if mo.html?
+          returnsHtml = true
+          facebox.show(mo.html, { closeButton: false })
+        done(arguments...)
+
+  page(_.extend({}, params, augmented))

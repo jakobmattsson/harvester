@@ -15,14 +15,10 @@ var ajax = function(params, callback) {
 
   var reqMet = null;
 
-  if (bunderline.parseOrigin(url) == currentOrigin) {
-    reqMet = request;
-  } else {
-    if (baseUrl) {
-      viaduct.host(baseUrl + '/viaduct.html');
-    }
-    reqMet = viaduct.request;
+  if (baseUrl) {
+    viaduct.host(baseUrl + '/viaduct.html');
   }
+  reqMet = viaduct.request;
 
   var qs = {
     metabody: true
@@ -37,7 +33,7 @@ var ajax = function(params, callback) {
 
   url += querystring;
 
-  reqMet({ // maybe use browser-request directly
+  reqMet({
     json: params.data || {},
     method: params.type || 'GET',
     auth: { username: params.username, password: params.password },

@@ -119,6 +119,18 @@ window.page = pagemod.middlewareCreator(window.page)
 window.page = pagemod.viewCreator(window.page)
 
 
+do ->
+  dialogs = {}
+
+  window.dialog = (params) ->
+    dialogs[params.route] = params.callback
+
+  window.runDialog = (name, args, done) ->
+    dialogs[name](args, done || ->)
+
+
+  window.dialog = pagemod.modalHtml(window.dialog)
+  window.dialog = pagemod.viewModal(window.dialog)
 
 
 
