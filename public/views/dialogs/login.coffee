@@ -15,12 +15,12 @@ dialog
         button[event:click=send!] "Log in"
   '''
   callback: (args, done) ->
-    mod = serenata.createModel
+    mod = serenadeModel
       username: ''
       password: ''
 
     cont =
-      send: serenata.evented (ev, target) ->
+      send: ->
         args.callback(null, { username: mod.username, password: mod.password })
 
     done({ model: mod, controller: cont })

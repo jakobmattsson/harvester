@@ -23,7 +23,7 @@ dialog
   callback: (args, done) ->
     fields = args.meta.fields.filter (field) -> !field.readonly
 
-    new_model = serenata.createModel
+    new_model = serenadeModel
       required: fields.filter((field) -> field.required).map (field) ->
         title: field.name
         value: field.default
@@ -32,7 +32,7 @@ dialog
         value: field.default
 
     new_controller =
-      send: serenata.evented (ev, target) ->
+      send: ->
 
         reqArray = argsToArray(new_model.get('required'))
         optArray = argsToArray(new_model.get('optional'))

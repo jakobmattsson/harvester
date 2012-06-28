@@ -6,13 +6,13 @@ page
     meta: "/meta/:resource"
     base: "/"
   callback: (args, done) ->
-    model = serenata.createModel
+    model = serenadeModel
       appends: if args.base.roots.contains(args.resource) then [1] else []
       items: args.sub.map (x) -> resourceToItem(args.domain, x, args.resource)
 
     controller =
-      del: serenata.evented (ev, target) ->
-        dbid = target.getAttribute("dbid")
+      del: (ev, target) ->
+        dbid = target.getAttribute("data-dbid")
         if (confirm("Are you sure you want to delete #{args.resource}/#{dbid}"))
           ajax
             url: "/#{args.resource}/#{dbid}"
@@ -21,7 +21,7 @@ page
             alert(err.err) if err
             model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
 
-      create: serenata.evented (ev, target) ->
+      create: ->
         runDialog "creation",
           resource: args.resource
           postUrl: "/#{args.resource}"

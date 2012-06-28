@@ -32,7 +32,7 @@ page
     metaMap = args.meta.fields.toMap('name')
     pairs = underline.toKeyValues(args.data).filter (x) -> !metaMap[x.key].readonly
 
-    model = serenata.createModel
+    model = serenadeModel
       item: JSON.stringify(args.data)
       pairs: pairs
       updateDisplay: 'none'
@@ -42,15 +42,15 @@ page
         dst: "/#{args.domain}/#{args.resource}/#{args.baseid}/#{x}"
 
     controller =
-      startUpdate: serenata.evented (ev, target) ->
+      startUpdate: ->
         model.set 'updateDisplay', 'block'
         model.set 'updateDisplayInv', 'none'
 
-      cancelUpdate: serenata.evented (ev, target) ->
+      cancelUpdate: ->
         model.set 'updateDisplay', 'none'
         model.set 'updateDisplayInv', 'block'
 
-      submitUpdate: serenata.evented (ev, target) ->
+      submitUpdate: ->
         ajax
           url: "/#{args.resource}/#{args.baseid}"
           type: 'PUT'
@@ -61,7 +61,7 @@ page
           else
             model.set('item', JSON.stringify(data))
 
-      del: serenata.evented (ev, target) ->
+      del: ->
         if (confirm("Are you sure you want to delete #{args.resource}/#{args.baseid}"))
           ajax
             url: "/#{args.resource}/#{args.baseid}"

@@ -1,14 +1,16 @@
+async = require 'async'
+
 exports.middlewareCreator = (page) -> (params) ->
   augmented = 
     callback: (args, done) ->
       mid = params.middleware ? []
-      params.callback args, () ->
-        mid.forEach (m) ->
-          m.what(args)
-        done(arguments...)
+      params.callback args, (doneArgs...) ->
+        async.forEach mid, (item, callback) ->
+          item.callback(args, callback)
+        , () ->
+          done(doneArgs...)
 
   page(_.extend({}, params, augmented))
-
 
 
 
@@ -29,59 +31,56 @@ exports.sourceCreator = (page, resolver) -> (params) ->
 
 
 
+exports.viewCreator = (page, conf) ->
 
-exports.viewCreator = (page) -> (params) ->
+  compiledViews = {}
 
-  return page(params) if !params.serenadeReplace? || !params.serenadeView?
+  (params) ->
 
-  augmented = 
+    return page(params) if !params[conf.viewIdentifier]?
+
+    augmented =
+      callback: (args, done) ->
+        params.callback args, (mo) ->
+          view = params[conf.viewIdentifier]
+          compiledViews[view] = conf.compileView(view) if !compiledViews[view]?
+          node = conf.render(compiledViews[view], mo)
+          done({ html: node })
+
+    page(_.extend({}, params, augmented))
+
+
+
+exports.nodeReplacer = (page, conf) -> (params) ->
+  return page(params) if !params[conf.nodeIdentifier]?
+
+  augmented =
     callback: (args, done) ->
       params.callback args, (mo) ->
-        dataview = document.getElementById params.serenadeReplace
-        underline.removeChildren(dataview)
-        node = Serenade.view(params.serenadeView).render(mo.model, mo.controller || {})
-        dataview.appendChild(node)
+        throw "Returned object must contain an html-attribute" if !mo.html?
+        target = document.getElementById params[conf.nodeIdentifier]
+        underline.removeChildren(target)
+        target.appendChild(mo.html)
         done(arguments...)
 
   page(_.extend({}, params, augmented))
 
 
 
-
-exports.viewModal = (page) -> (params) ->
-
-  return page(params) if !params.serenadeView?
-
+exports.modalHtml = (page, modal) -> (params) ->
   augmented =
     callback: (args, done) ->
-      params.callback args, (mo) ->
-        node = Serenade.view(params.serenadeView).render(mo.model, mo.controller || {})
-        done({ html: node })
-
-  page(_.extend({}, params, augmented))
-
-
-
-
-
-exports.modalHtml = (page) -> (params) ->
-
-  augmented =
-    callback: (args, done) ->
-      returnsHtml = false
 
       augArgs =
         callback: (err, data) ->
-          if returnsHtml
-            facebox.close()
+          modal.close()
           args.callback(err, data) if args.callback?
 
       allArgs = _.extend({}, args, augArgs)
 
       params.callback allArgs, (mo) ->
-        if mo.html?
-          returnsHtml = true
-          facebox.show(mo.html, { closeButton: false })
+        throw "Returned object must contain an html-attribute" if !mo.html?
+        modal.show(mo.html)
         done(arguments...)
 
   page(_.extend({}, params, augmented))
