@@ -59,7 +59,7 @@ window.ajax = (params, callback) ->
     metabody: true
   }
 
-  if params.baseUrl && params.url.indexOf('http://') == -1
+  if params.baseUrl && !params.url.contains('http://')
     url = params.baseUrl + params.url
 
   urlOrigin = π.parseOrigin(url)

@@ -1,0 +1,1 @@
+String::contains = (str) -> @indexOf(str) != -1
