@@ -174,14 +174,9 @@ do ->
   dialogRouter = require('path-router').create()
   facebox = require 'modules/facebox'
 
+  window.runDialog = (name, args, done) -> dialogRouter.trigger name, done, args
 
-  window.dialog = (params) ->
-    dialogRouter.register params.route, params.callback
-
-  window.runDialog = (name, args, done) ->
-    dialogRouter.trigger name, done, args
-
-
+  window.dialog = (params) -> dialogRouter.register params.route, params.callback
   window.dialog = pagemod.sourceCreator(window.dialog, safeMultiGet)
   window.dialog = pagemod.modalHtml(window.dialog, {
     show: (html) -> facebox.show(html, { closeButton: false })
