@@ -1,3 +1,4 @@
+π = require 'piescore'
 async = require 'async'
 
 exports.middlewareCreator = (page) -> (params) ->
