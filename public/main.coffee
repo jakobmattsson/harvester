@@ -1,13 +1,17 @@
-window.underline = require 'modules/local_underline'
-window.bunderline = require 'modules/local_underline_browser'
+require 'protoplast'
 require 'modules/local_protoplast'
+
+window.π = require 'piescore'
+_.extend(π, require 'modules/local_piescore')
+
+window.local = require 'modules/local'
 
 pagemod = require 'modules/page'
 router = require('path-router').create()
 
 getSerenadeView = (name) ->
-  matches = argsToArray(document.getElementsByTagName('script')).filter (x) ->
-    x.getAttribute("data-path") == '/templates/' + name + '.serenade';
+  matches = π.argsToArray(document.getElementsByTagName('script')).filter (x) ->
+    x.getAttribute("data-path") == '/views/templates/' + name + '.serenade';
 
   x = matches.first()
 
@@ -18,7 +22,7 @@ getSerenadeView = (name) ->
 
 window.renderReplace = (id, view, model, controller) ->
   node = renderSerenade(getSerenadeView(view), model, controller)
-  underline.replaceChildren id, node
+  π.replaceChildren id, node
 
 safeMultiGet = (paths, callback) ->
   multiGet paths, (error, data) ->
@@ -49,19 +53,76 @@ multiGet = (paths, callback) ->
 
 
 
+window.ajax = (params, callback) ->
+  url = params.url
+  qs = {
+    metabody: true
+  }
+
+  if params.baseUrl && params.url.indexOf('http://') == -1
+    url = params.baseUrl + params.url
+
+  urlOrigin = π.parseOrigin(url)
+
+  viaduct.host(urlOrigin + '/viaduct.html')
+
+
+  # Add on the querystring
+  querystring = Object.keys(qs).map((key) -> key + "=" + qs[key]).join("&")
+  if url.indexOf('?') == -1
+    querystring = "?" + querystring
+  else
+    querystring = "&" + querystring
+  url += querystring
+
+  # Perform the request
+  viaduct.request
+    json: params.data || {}
+    method: params.type || 'GET'
+    auth: { username: params.username, password: params.password }
+    url: url
+  , (err, response, body) ->
+    if err || response.statusCode != 200
+      callback({ msg: 'Failed' })
+    else if body.code != 200
+      callback({ code: body.code })
+    else
+      callback(null, body.body)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ajaxOld = window.ajax
+window.ajax = (params, callback) ->
+
+  domain = window.location.pathname.split('/').compact(true).first()
+  authdata = local.auth.get(domain)
+
+  username = authdata.username
+  password = authdata.password
+  baseUrl = 'http://' + domain if domain?
+
+  ajaxOld(_.extend({}, params, { username: username, password: password, baseUrl: baseUrl }), callback)
+
+
 
 
 
 
 setTimeout ->
-  domain = window.location.pathname.split('/').compact(true).first()
-  ajax.baseUrl = 'http://' + domain if domain?
-
-  authdata = auth.get(domain)
-  ajax.username = authdata.username
-  ajax.password = authdata.password
-
-  router.trigger(window.location.pathname)
+  pathname = window.location.pathname
+  pathname = pathname.slice(0, -1) if pathname.last() == '/' && pathname.length > 1
+  router.trigger pathname
 , 1
 
 
@@ -72,15 +133,8 @@ setTimeout ->
 
 
 
-wrapController = (ctrl) ->
-  Object.keys(ctrl).forEach (key) ->
-    callback = ctrl[key]
-    ctrl[key] = (data, e) ->
-      callback.call(this, null, e)
-  ctrl
-
 renderSerenade = (view, model, controller) ->
-  view.render(model, wrapController(controller || {}))
+  view.render(model, controller || {})
 
 window.serenadeModel = (data) ->
   model = Serenade({})
@@ -117,7 +171,7 @@ window.page = pagemod.viewCreator(window.page, {
 
 
 do ->
-  dialogRouter = require('modules/router').create() # replace with path-router
+  dialogRouter = require('path-router').create()
   facebox = require 'modules/facebox'
 
 

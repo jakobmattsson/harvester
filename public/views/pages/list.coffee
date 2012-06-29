@@ -8,25 +8,24 @@ page
   callback: (args, done) ->
     model = serenadeModel
       appends: if args.base.roots.contains(args.resource) then [1] else []
-      items: args.sub.map (x) -> resourceToItem(args.domain, x, args.resource)
+      items: args.sub.map (x) -> local.resourceToItem(args.domain, x, args.resource)
 
     controller =
-      del: (ev, target) ->
-        dbid = target.getAttribute("data-dbid")
-        if (confirm("Are you sure you want to delete #{args.resource}/#{dbid}"))
+      del: (modelItem) ->
+        if (confirm("Are you sure you want to delete #{args.resource}/#{modelItem.id}"))
           ajax
-            url: "/#{args.resource}/#{dbid}"
+            url: "/#{args.resource}/#{modelItem.id}"
             type: 'DELETE'
           , (err, data) ->
             alert(err.err) if err
-            model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
+            model.get('items')['delete'](model.get('items').find((x) -> x.id == modelItem.id))
 
       create: ->
         runDialog "creation",
           resource: args.resource
           postUrl: "/#{args.resource}"
           callback: (err, newObj) ->
-            model.get('items').push(resourceToItem(args.domain, newObj, args.resource))
+            model.get('items').push(local.resourceToItem(args.domain, newObj, args.resource))
 
     renderReplace('dataview', 'list', model, controller)
     done()

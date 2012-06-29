@@ -34,8 +34,8 @@ dialog
     new_controller =
       send: ->
 
-        reqArray = argsToArray(new_model.get('required'))
-        optArray = argsToArray(new_model.get('optional'))
+        reqArray = π.argsToArray(new_model.get('required'))
+        optArray = π.argsToArray(new_model.get('optional'))
 
         all = reqArray.concat(optArray)
         submitData = all.toMap('title', 'value')

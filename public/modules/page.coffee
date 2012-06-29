@@ -59,7 +59,7 @@ exports.nodeReplacer = (page, conf) -> (params) ->
       params.callback args, (mo) ->
         throw "Returned object must contain an html-attribute" if !mo.html?
         target = document.getElementById params[conf.nodeIdentifier]
-        underline.removeChildren(target)
+        π.removeChildren(target)
         target.appendChild(mo.html)
         done(arguments...)
 
@@ -78,9 +78,9 @@ exports.modalHtml = (page, modal) -> (params) ->
 
       allArgs = _.extend({}, args, augArgs)
 
-      params.callback allArgs, (mo) ->
-        throw "Returned object must contain an html-attribute" if !mo.html?
-        modal.show(mo.html)
+      params.callback allArgs, (data) ->
+        throw "Returned object must contain an html-attribute" if !data.html?
+        modal.show(data.html)
         done(arguments...)
 
   page(_.extend({}, params, augmented))

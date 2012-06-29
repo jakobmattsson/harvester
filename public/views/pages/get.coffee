@@ -30,7 +30,7 @@ page
   '''
   callback: (args, done) ->
     metaMap = args.meta.fields.toMap('name')
-    pairs = underline.toKeyValues(args.data).filter (x) -> !metaMap[x.key].readonly
+    pairs = π.toKeyValues(args.data).filter (x) -> !metaMap[x.key].readonly
 
     model = serenadeModel
       item: JSON.stringify(args.data)

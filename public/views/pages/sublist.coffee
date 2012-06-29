@@ -7,25 +7,24 @@ page
   callback: (args, done) ->
     model = serenadeModel
       appends: [1]
-      items: args.sub.map (x) -> resourceToItem(args.domain, x, args.subresource)
+      items: args.sub.map (x) -> local.resourceToItem(args.domain, x, args.subresource)
 
     controller =
-      del: ->
-        dbid = target.getAttribute("data-dbid")
-        if (confirm("Are you sure you want to delete #{args.subresource}/#{dbid}"))
+      del: (modelItem)->
+        if (confirm("Are you sure you want to delete #{args.subresource}/#{modelItem.id}"))
           ajax
-            url: "/#{args.subresource}/#{dbid}"
+            url: "/#{args.subresource}/#{modelItem.id}"
             type: 'DELETE'
           , (err, data) ->
             alert(err.err) if err
-            model.get('items')['delete'](model.get('items').find((x) -> x.id == dbid))
+            model.get('items')['delete'](model.get('items').find((x) -> x.id == modelItem.id))
 
-      create: (ev, target) ->
+      create: () ->
         runDialog "creation",
           resource: args.subresource
           postUrl: "/#{args.resource}/#{args.baseid}/#{args.subresource}"
           callback: (err, result) ->
-            model.get('items').push(resourceToItem(args.domain, result, args.subresource))
+            model.get('items').push(local.resourceToItem(args.domain, result, args.subresource))
 
     renderReplace('dataview', 'list', model, controller)
     done()
