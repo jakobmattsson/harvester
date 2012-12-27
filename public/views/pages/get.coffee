@@ -29,8 +29,8 @@ page
         button[event:click=submitUpdate!] "submit"
   '''
   callback: (args, done) ->
-    metaMap = args.meta.fields.toMap('name')
-    pairs = π.toKeyValues(args.data).filter (x) -> !metaMap[x.key].readonly
+    metaMap = _(args.meta.fields).toObject('name')
+    pairs = _(args.data).toKeyValues().filter (x) -> !metaMap[x.key].readonly
 
     model = serenadeModel
       item: JSON.stringify(args.data)
@@ -54,7 +54,7 @@ page
         ajax
           url: "/#{args.resource}/#{args.baseid}"
           type: 'PUT'
-          data: pairs.toMap('key', 'value')
+          data: _(pairs).toObject('key', 'value')
         , (err, data) ->
           if (err)
             alert(err.err)

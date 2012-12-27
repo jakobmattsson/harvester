@@ -34,11 +34,13 @@ dialog
     new_controller =
       send: ->
 
-        reqArray = π.argsToArray(new_model.get('required'))
-        optArray = π.argsToArray(new_model.get('optional'))
+        reqArray = new_model.get('required').toArray()
+        optArray = new_model.get('optional').toArray()
 
         all = reqArray.concat(optArray)
-        submitData = all.toMap('title', 'value')
+        submitData = _(all).toObject('title', 'value')
+        
+        console.log("ss", submitData)
 
         ajax
           url: args.postUrl

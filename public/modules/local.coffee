@@ -1,3 +1,5 @@
+cookies = require 'jakobmattsson-client-cookies'
+
 exports.resourceToItem = (domain, resourceItem, res) ->
   id: resourceItem.id
   string: JSON.stringify(resourceItem)

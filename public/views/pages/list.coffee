@@ -7,7 +7,7 @@ page
     base: "/"
   callback: (args, done) ->
     model = serenadeModel
-      appends: if args.base.roots.contains(args.resource) then [1] else []
+      appends: if _(args.base.roots).contains(args.resource) then [1] else []
       items: args.sub.map (x) -> local.resourceToItem(args.domain, x, args.resource)
 
     controller =
